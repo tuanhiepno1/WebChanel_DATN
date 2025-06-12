@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block');
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* NGĂN TRÀN NGANG */
+  width: 100%;
+  font-family: 'Roboto', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* === MENU FIX === */
+
+/* Xóa gạch dưới mặc định của Ant Design */
+.ant-menu-horizontal > .ant-menu-item::after,
+.ant-menu-horizontal > .ant-menu-submenu::after {
+  display: none !important;
+}
+
+/* Bỏ hiệu ứng dịch chuyển */
+.ant-menu-horizontal > .ant-menu-item,
+.ant-menu-horizontal > .ant-menu-submenu {
+  position: relative;
+  transition: none !important;
+  padding-bottom: 0 !important;
+}
+
+/* Hover và selected dùng gạch dưới bằng ::after */
+.ant-menu-horizontal > .ant-menu-item:hover::after,
+.ant-menu-horizontal > .ant-menu-item-selected::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background-color: #DBB671;
+}
+
+/* Màu chữ khi hover và khi chọn */
+.ant-menu-light .ant-menu-item:hover,
+.ant-menu-horizontal > .ant-menu-item-selected {
+  color: #DBB671 !important;
+  background-color: transparent !important;
+  transition: none !important;
+}
+
+/* Fix chiều cao menu để tránh scroll */
+.ant-menu-horizontal > .ant-menu-item {
+  line-height: 98px;
+  height: 100%;
+}
+
+/* Tăng độ chính xác chiều cao */
+.ant-layout-header {
+  line-height: 100px !important;
+  height: 100px !important;
+  padding: 0 !important;
+}
