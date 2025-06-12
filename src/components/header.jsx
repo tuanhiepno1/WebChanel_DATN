@@ -40,10 +40,10 @@ const HeaderComponent = () => {
     null;
 
   const handleLogout = (e) => {
-    e?.domEvent?.stopPropagation(); // Ngăn event lan ra ngoài nếu có
-    dispatch(logout());
-    navigate(endPoints.ALL);
-  };
+  e?.domEvent?.stopPropagation(); // Ngăn event lan ra ngoài nếu có
+  dispatch(logout());
+  navigate(endPoints.ALL);
+};
 
   const userMenuItems = isLoggedIn
     ? [
@@ -149,7 +149,9 @@ const HeaderComponent = () => {
             >
               <UserOutlined style={{ fontSize: 22 }} />
               {isLoggedIn && (
-                <span style={{ fontWeight: 500 }}>{user?.username}</span>
+                <span style={{ fontWeight: 500 }}>
+                  {user?.username}
+                </span>
               )}
             </div>
           </Dropdown>
