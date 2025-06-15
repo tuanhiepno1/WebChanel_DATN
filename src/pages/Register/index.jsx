@@ -21,10 +21,7 @@ const Register = () => {
 
   const onFinish = async (values) => {
   try {
-    const payload = {
-      ...values,
-      phone: parseInt(values.phone, 10),
-    };
+    const payload = { ...values };
 
     console.log("👉 Payload gửi lên đăng ký:", payload);
 

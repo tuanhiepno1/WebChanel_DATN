@@ -1,79 +1,44 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, Button, Tag } from "antd";
 import Slider from "react-slick";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { fetchFeaturedProducts } from "@api/productApi";
 
-import disc1 from "@assets/images/disc1.png";
-import disc2 from "@assets/images/disc2.png";
-import disc3 from "@assets/images/disc3.png";
-import disc4 from "@assets/images/disc4.png";
-import disc5 from "@assets/images/disc5.png";
-import disc6 from "@assets/images/disc6.png";
-import disc7 from "@assets/images/disc7.png";
-import disc8 from "@assets/images/disc8.png";
+// Arrow Components
+const PrevArrow = ({ onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      left: -25,
+      zIndex: 2,
+      top: "40%",
+      position: "absolute",
+      cursor: "pointer",
+    }}
+  >
+    <LeftOutlined style={{ fontSize: 24 }} />
+  </div>
+);
 
-const products = [
-  {
-    id: 1,
-    name: "BLEU DE CHANEL",
-    discount: "10%OFF",
-    price: "3.450.000 VNĐ",
-    image: disc1,
-  },
-  {
-    id: 2,
-    name: "N°5",
-    discount: "10%OFF",
-    price: "3.580.000 VNĐ",
-    image: disc2,
-  },
-  {
-    id: 3,
-    name: "COCO",
-    discount: "10%OFF",
-    price: "3.440.000 VNĐ",
-    image: disc3,
-  },
-  {
-    id: 4,
-    name: "N°19",
-    discount: "20%OFF",
-    price: "3.330.000 VNĐ",
-    image: disc4,
-  },
-  {
-    id: 5,
-    name: "CHANCE EAU TENDRE",
-    discount: "15%OFF",
-    price: "3.650.000 VNĐ",
-    image: disc5,
-  },
-  {
-    id: 6,
-    name: "ROUGE ALLURE",
-    discount: "5%OFF",
-    price: "1.250.000 VNĐ",
-    image: disc6,
-  },
-  {
-    id: 7,
-    name: "SUBLIMAGE L’ESSENCE",
-    discount: "20%OFF",
-    price: "5.850.000 VNĐ",
-    image: disc7,
-  },
-  {
-    id: 8,
-    name: "HYDRA BEAUTY",
-    discount: "12%OFF",
-    price: "2.980.000 VNĐ",
-    image: disc8,
-  },
-];
+const NextArrow = ({ onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      right: -25,
+      zIndex: 2,
+      top: "40%",
+      position: "absolute",
+      cursor: "pointer",
+    }}
+  >
+    <RightOutlined style={{ fontSize: 24 }} />
+  </div>
+);
 
 const ProductCard = ({ product }) => (
+  console.log("product.image:", product.image),
   <Card
     hoverable
     style={{
@@ -87,114 +52,81 @@ const ProductCard = ({ product }) => (
     cover={
       <img
         alt={product.name}
-        src={product.image}
+        src={
+          product.image.startsWith("http")
+            ? product.image
+            : `http://localhost:8000/storage/${product.image}`
+        }
         style={{
           padding: 24,
           height: 250,
           objectFit: "contain",
-          transition: "transform 0.3s ease",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
       />
     }
     bodyStyle={{ textAlign: "center" }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = "scale(1.03)";
-      e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.2)";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = "scale(1)";
-      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1)";
-    }}
   >
     <Tag color="red" style={{ position: "absolute", top: 10, left: 10 }}>
-      {product.discount}
+      {product.discount || "HOT"}
     </Tag>
-    <h4>{product.name}</h4>
-    <p style={{ fontWeight: "bold" }}>{product.price}</p>
+    <h4
+      style={{
+        height: 48,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        display: "-webkit-box",
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: "vertical",
+      }}
+    >
+      {product.name}
+    </h4>
+    <p style={{ fontWeight: "bold", color: "#D0021B" }}>
+      {Number(product.price).toLocaleString("vi-VN")}₫
+    </p>
     <Button type="primary" style={{ background: "#D6B160", border: "none" }}>
       XEM CHI TIẾT
     </Button>
   </Card>
 );
 
-// Custom arrow style
-const arrowBaseStyle = {
-  background: "black",
-  color: "white",
-  borderRadius: "50%",
-  width: 40,
-  height: 40,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  fontSize: 20,
-  zIndex: 2,
-  cursor: "pointer",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-};
-
-// Arrow components
-const NextArrow = ({ onClick }) => (
-  <div
-    style={{ ...arrowBaseStyle, position: "absolute", right: -20, top: "45%" }}
-    onClick={onClick}
-  >
-    <RightOutlined />
-  </div>
-);
-
-const PrevArrow = ({ onClick }) => (
-  <div
-    style={{ ...arrowBaseStyle, position: "absolute", left: -20, top: "45%" }}
-    onClick={onClick}
-  >
-    <LeftOutlined />
-  </div>
-);
-
 const DiscountProducts = () => {
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await fetchFeaturedProducts();
+      setProducts(data);
+    };
+    load();
+  }, []);
+
   const settings = {
     dots: false,
     infinite: true,
     speed: 600,
-    cssEase: "ease-in-out",
     slidesToShow: 4,
     slidesToScroll: 1,
     arrows: true,
     nextArrow: <NextArrow />,
     prevArrow: <PrevArrow />,
     responsive: [
-      {
-        breakpoint: 1200,
-        settings: { slidesToShow: 3 },
-      },
-      {
-        breakpoint: 900,
-        settings: { slidesToShow: 2 },
-      },
-      {
-        breakpoint: 600,
-        settings: { slidesToShow: 1 },
-      },
+      { breakpoint: 1200, settings: { slidesToShow: 3 } },
+      { breakpoint: 900, settings: { slidesToShow: 2 } },
+      { breakpoint: 600, settings: { slidesToShow: 1 } },
     ],
   };
 
   return (
     <div style={{ padding: "40px 0", position: "relative" }}>
-      <h2 style={{ textAlign: "center", marginBottom: 12 }}>
-        SẢN PHẨM GIẢM GIÁ
-      </h2>
-      <div style={{ padding: "0", position: "relative" }}>
-        <Slider {...settings}>
-          {products.map((product) => (
-            <div key={product.id}>
-              <ProductCard product={product} />
-            </div>
-          ))}
-        </Slider>
-      </div>
+      <h2 style={{ textAlign: "center", marginBottom: 12 }}>SẢN PHẨM HOT</h2>
+      <Slider {...settings}>
+        {products.map((product) => (
+          <div key={product.id}>
+            <ProductCard product={product} />
+          </div>
+        ))}
+      </Slider>
     </div>
   );
 };

@@ -6,7 +6,7 @@ import HeaderComponent from "@components/header";
 import FooterComponent from "@components/footer";
 import DiscountProducts from "@components/discountProduct";
 
-import { fetchPerfumes, fetchPerfumeCategories } from "@api/productApi";  // import api đúng đường dẫn
+import { fetchPerfumes } from "@api/productApi";  // import api đúng đường dẫn
 
 const { Content } = Layout;
 
