@@ -37,56 +37,67 @@ const CategoryPage = () => {
 
   return (
     <Layout>
-  <HeaderComponent />
-  <Content style={{ maxWidth: "1200px", margin: "20px auto", minHeight: "100vh" }}>
-    <Row gutter={[20, 20]}>
-      <Col xs={0} md={6}>
-        {loading ? (
-          <Skeleton active title={{ width: 150 }} paragraph={{ rows: 6 }} />
-        ) : (
-          <motion.div
-            initial={{ x: -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.4 }}
-          >
-            <GenericSidebar
-              title={category?.category_name || "Danh mục"}
-              categories={category?.subcategories || []}
-              featuredProducts={products.slice(0, 5)}
-            />
-          </motion.div>
-        )}
-      </Col>
-      <Col
-        xs={24}
-        md={18}
-        style={{ display: "flex", flexDirection: "column", minHeight: "80vh" }}
+      <HeaderComponent />
+      <Content
+        style={{ maxWidth: "1200px", margin: "20px auto", minHeight: "100vh" }}
       >
-        {loading ? (
-          <Row gutter={[16, 16]}>
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Col key={index} xs={12} md={8}>
-                <Skeleton.Image style={{ width: "100%", height: 200 }} />
-                <Skeleton active paragraph={{ rows: 2 }} />
-              </Col>
-            ))}
-          </Row>
-        ) : (
-          <motion.div
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            style={{ flex: 1 }}
+        <Row gutter={[20, 20]} wrap={false}>
+          <Col
+            xs={24}
+            md={6}
+            style={{
+              flex: "0 0 300px",
+              maxWidth: 300,
+              minWidth: 300,
+            }}
           >
-            <ProductGrid products={products} />
-          </motion.div>
-        )}
-      </Col>
-    </Row>
-  </Content>
-  <FooterComponent />
-</Layout>
+            {loading ? (
+              <Skeleton active title={{ width: 150 }} paragraph={{ rows: 6 }} />
+            ) : (
+              <motion.div
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                <GenericSidebar
+                  title={category?.category_name || "Danh mục"}
+                  categories={category?.subcategories || []}
+                  featuredProducts={products.slice(0, 5)}
+                />
+              </motion.div>
+            )}
+          </Col>
 
+          <Col
+            xs={24}
+            md={18}
+            style={{
+              minHeight: "80vh",
+            }}
+          >
+            {loading ? (
+              <Row gutter={[16, 16]}>
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Col key={index} xs={12} md={8}>
+                    <Skeleton.Image style={{ width: "100%", height: 200 }} />
+                    <Skeleton active paragraph={{ rows: 2 }} />
+                  </Col>
+                ))}
+              </Row>
+            ) : (
+              <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <ProductGrid products={products} />
+              </motion.div>
+            )}
+          </Col>
+        </Row>
+      </Content>
+      <FooterComponent />
+    </Layout>
   );
 };
 

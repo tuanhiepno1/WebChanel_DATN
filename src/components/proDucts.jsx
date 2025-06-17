@@ -15,123 +15,143 @@ const ProductCard = ({ product }) => {
     navigate("/gio-hang");
   };
 
-  return (
-    <Card
-      hoverable={!!product?.id}
-      onClick={() => product?.id && navigate(`/nuoc-hoa/${product.id}`)}
-      style={{
-        width: "100%",
-        borderRadius: 10,
-        overflow: "hidden",
-        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-        transition: "transform 0.3s ease",
-        cursor: product?.id ? "pointer" : "default",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "flex-start",
-        backgroundColor: product?.id ? "#fff" : "transparent",
-      }}
-      bodyStyle={{
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "scale(1.03)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "scale(1)";
-      }}
-    >
-      {/* Ảnh sản phẩm */}
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: "4 / 3",
-          overflow: "hidden",
-          backgroundColor: "#fff",
-          borderRadius: 10,
-          flexShrink: 0,
-        }}
-      >
-        <img
-          src={product.image}
-          alt={product.name}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            transition: "transform 0.3s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "scale(1.1)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "scale(1)";
-          }}
-        />
-        <Tooltip title="Thêm vào giỏ hàng">
-          <ShoppingCartOutlined
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              fontSize: 22,
-              color: "#1890ff",
-              background: "white",
-              borderRadius: "50%",
-              padding: 6,
-              boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-              cursor: "pointer",
-              zIndex: 2,
-            }}
-            onClick={handleAddToCart}
-          />
-        </Tooltip>
-      </div>
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined || value === "") return "0 ₫";
 
-      {/* Nội dung */}
-      <div
+    // Xử lý chuỗi có ký hiệu tiền tệ hoặc dấu phẩy
+    const cleaned = String(value).replace(/[^\d]/g, ""); // chỉ giữ lại chữ số
+    const number = Number(cleaned);
+
+    if (isNaN(number)) {
+      console.warn("❌ Không thể convert giá trị:", value);
+      return "0 ₫";
+    }
+
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      minimumFractionDigits: 0,
+    }).format(number);
+  };
+
+  return (
+    (
+      <Card
+        hoverable={!!product?.id}
+        onClick={() => product?.id && navigate(`/nuoc-hoa/${product.id}`)}
         style={{
-          marginTop: 12,
-          textAlign: "center",
-          flexGrow: 1,
+          width: "100%",
+          borderRadius: 10,
+          overflow: "hidden",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+          transition: "transform 0.3s ease",
+          cursor: product?.id ? "pointer" : "default",
+          height: "100%",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "space-between",
+          justifyContent: "flex-start",
+          backgroundColor: product?.id ? "#fff" : "transparent",
+        }}
+        bodyStyle={{
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.03)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
         }}
       >
-        <div>
-          <h4 style={{ fontSize: 18, minHeight: 42, marginBottom: 8 }}>
-            {product.name}
-          </h4>
-          <Rate
-            disabled
-            defaultValue={product.rating || 4}
-            style={{ fontSize: 16, marginBottom: 8 }}
-          />
-        </div>
-        <p
+        {/* Ảnh sản phẩm */}
+        <div
           style={{
-            fontWeight: "bold",
-            fontSize: 18,
-            color: "#ff4d4f",
-            marginTop: 8,
+            position: "relative",
+            width: "100%",
+            aspectRatio: "4 / 3",
+            overflow: "hidden",
+            backgroundColor: "#fff",
+            borderRadius: 10,
+            flexShrink: 0,
           }}
         >
-          {product.price?.toLocaleString("vi-VN")}₫
-        </p>
-      </div>
-    </Card>
+          <img
+            src={product.image}
+            alt={product.name}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              transition: "transform 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          />
+          <Tooltip title="Thêm vào giỏ hàng">
+            <ShoppingCartOutlined
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                fontSize: 22,
+                color: "#1890ff",
+                background: "white",
+                borderRadius: "50%",
+                padding: 6,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                cursor: "pointer",
+                zIndex: 2,
+              }}
+              onClick={handleAddToCart}
+            />
+          </Tooltip>
+        </div>
+
+        {/* Nội dung */}
+        <div
+          style={{
+            marginTop: 12,
+            textAlign: "center",
+            flexGrow: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <h4 style={{ fontSize: 18, minHeight: 42, marginBottom: 8 }}>
+              {product.name}
+            </h4>
+            <Rate
+              disabled
+              defaultValue={product.rating || 4}
+              style={{ fontSize: 16, marginBottom: 8 }}
+            />
+          </div>
+          <span
+            style={{
+              fontWeight: "bold",
+              fontSize: 18,
+              color: "#ff4d4f",
+              marginTop: 8,
+            }}
+          >
+            {formatCurrency(product.price)}
+          </span>
+        </div>
+      </Card>
+    )
   );
 };
-
 
 export const ProductGrid = ({ products }) => {
   const pageSize = 9;
@@ -193,6 +213,3 @@ export const ProductGrid = ({ products }) => {
     </>
   );
 };
-
-
-

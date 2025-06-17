@@ -6,7 +6,7 @@ import {
   MailOutlined,
   LockOutlined,
 } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { login } from "@features/authSlice";
 import endPoints from "@routes/router";
@@ -74,7 +74,9 @@ const Login = () => {
         </div>
 
         {/* RIGHT SIDE - LOGIN FORM */}
-        <div style={{ width: "60%", padding: "40px 30px", position: "relative" }}>
+        <div
+          style={{ width: "60%", padding: "40px 30px", position: "relative" }}
+        >
           <div
             style={{
               position: "absolute",
@@ -120,7 +122,10 @@ const Login = () => {
               name="password"
               rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
             >
-              <Input.Password placeholder="Mật khẩu" prefix={<LockOutlined />} />
+              <Input.Password
+                placeholder="Mật khẩu"
+                prefix={<LockOutlined />}
+              />
             </Form.Item>
 
             <Form.Item style={{ marginBottom: 10 }}>
@@ -128,9 +133,9 @@ const Login = () => {
                 <Form.Item name="remember" valuePropName="checked" noStyle>
                   <Checkbox>Nhớ mật khẩu</Checkbox>
                 </Form.Item>
-                <a href="/forgot-password" style={{ color: "#1890ff" }}>
+                <Link to="/forgot-password" style={{ color: "#1890ff" }}>
                   Quên mật khẩu?
-                </a>
+                </Link>
               </div>
             </Form.Item>
 

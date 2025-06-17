@@ -59,9 +59,12 @@ export const checkCode = async (data) => {
 // Đặt lại mật khẩu
 export const resetPassword = async (data) => {
   try {
-    const res = await axiosClient.post('/reset-password', data); // data = { email, password }
+    const res = await axiosClient.post("/reset-password", data); 
+    // data = { email, password, confirm_password }
     return res.data;
   } catch (error) {
-    throw new Error(error.response?.data?.message || 'Đặt lại mật khẩu thất bại');
+    throw new Error(
+      error.response?.data?.message || "Đặt lại mật khẩu thất bại"
+    );
   }
 };
