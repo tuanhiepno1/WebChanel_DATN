@@ -18,15 +18,16 @@ const HeaderComponent = () => {
   const isLoggedIn = !!user;
 
   const [menuItems, setMenuItems] = useState([]);
+  const [selectedKey, setSelectedKey] = useState(null);
 
   useEffect(() => {
     const loadCategories = async () => {
       try {
         const categories = await fetchActiveProductCategories();
         const categoryMenu = categories.slice(0, 4).map((cat) => ({
-          key: `cat-${cat.id_category}`,
+          key: `cat-${cat.slug}`, // dùng slug để dò URL sau này
           label: cat.category_name.toUpperCase(),
-          path: `/category/${cat.id_category}`,
+          path: `/category/${cat.slug}`,
         }));
 
         const fixedItems = [
@@ -50,9 +51,13 @@ const HeaderComponent = () => {
     loadCategories();
   }, []);
 
-  const selectedKey = menuItems.find((item) =>
-    location.pathname.startsWith(item.path)
-  )?.key;
+  // Update selected menu key based on current URL
+  useEffect(() => {
+    const matched = menuItems.find((item) =>
+      location.pathname.startsWith(item.path)
+    );
+    setSelectedKey(matched?.key || null);
+  }, [location.pathname, menuItems]);
 
   const handleLogout = (e) => {
     e?.domEvent?.stopPropagation();

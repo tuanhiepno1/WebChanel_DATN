@@ -8,7 +8,8 @@ const GenericSidebar = ({ title, categories, featuredProducts }) => {
   const [priceRange, setPriceRange] = useState([500000, 2000000]);
 
   return (
-    <div style={{ padding: 16, background: "#fff", borderRadius: 8 }}>
+    <div style={{ padding: 16, background: "#fff", borderRadius: 8, height: "100%" }}>
+
       {/* Thanh chọn khoảng giá */}
       <Divider orientation="left">Khoảng giá</Divider>
       <Slider
@@ -47,7 +48,7 @@ const GenericSidebar = ({ title, categories, featuredProducts }) => {
               (e.currentTarget.style.background = "transparent")
             }
           >
-            <Text>{typeof cat === "string" ? cat : cat.name}</Text>
+            <Text>{typeof cat === "string" ? cat : cat.category_name}</Text>
             <RightOutlined style={{ fontSize: 12 }} />
           </div>
         ))}

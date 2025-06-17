@@ -1,11 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, Row, Col, Pagination, Rate, Tooltip } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { addToCart } from "@redux/cartSlice";
 import { ShoppingCartOutlined } from "@ant-design/icons";
-
-// Bỏ import perfumes tĩnh ở đây
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
@@ -19,17 +17,27 @@ const ProductCard = ({ product }) => {
 
   return (
     <Card
-      hoverable
-      onClick={() => navigate(`/nuoc-hoa/${product.id}`)}
+      hoverable={!!product?.id}
+      onClick={() => product?.id && navigate(`/nuoc-hoa/${product.id}`)}
       style={{
+        width: "100%",
         borderRadius: 10,
         overflow: "hidden",
-        boxShadow: "0 4px 10px rgba(0, 0, 0, 0.08)",
-        position: "relative",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
         transition: "transform 0.3s ease",
-        cursor: "pointer",
+        cursor: product?.id ? "pointer" : "default",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-start",
+        backgroundColor: product?.id ? "#fff" : "transparent",
       }}
-      styles={{ body: { padding: 16 } }}
+      bodyStyle={{
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+      }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "scale(1.03)";
       }}
@@ -37,13 +45,16 @@ const ProductCard = ({ product }) => {
         e.currentTarget.style.transform = "scale(1)";
       }}
     >
+      {/* Ảnh sản phẩm */}
       <div
         style={{
           position: "relative",
           width: "100%",
-          paddingTop: "100%",
+          aspectRatio: "4 / 3",
           overflow: "hidden",
+          backgroundColor: "#fff",
           borderRadius: 10,
+          flexShrink: 0,
         }}
       >
         <img
@@ -55,7 +66,7 @@ const ProductCard = ({ product }) => {
             left: 0,
             width: "100%",
             height: "100%",
-            objectFit: "cover",
+            objectFit: "contain",
             transition: "transform 0.3s ease",
           }}
           onMouseEnter={(e) => {
@@ -85,55 +96,103 @@ const ProductCard = ({ product }) => {
         </Tooltip>
       </div>
 
-      <div style={{ marginTop: 12, textAlign: "center" }}>
-        <h4 style={{ marginBottom: 8 }}>{product.name}</h4>
-        <Rate
-          disabled
-          defaultValue={product.rating}
-          style={{ fontSize: 14, marginBottom: 8 }}
-        />
+      {/* Nội dung */}
+      <div
+        style={{
+          marginTop: 12,
+          textAlign: "center",
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+        }}
+      >
+        <div>
+          <h4 style={{ fontSize: 18, minHeight: 42, marginBottom: 8 }}>
+            {product.name}
+          </h4>
+          <Rate
+            disabled
+            defaultValue={product.rating || 4}
+            style={{ fontSize: 16, marginBottom: 8 }}
+          />
+        </div>
         <p
           style={{
             fontWeight: "bold",
-            fontSize: 16,
+            fontSize: 18,
             color: "#ff4d4f",
             marginTop: 8,
           }}
         >
-          {product.price}
+          {product.price?.toLocaleString("vi-VN")}₫
         </p>
       </div>
     </Card>
   );
 };
 
-export const ProductGrid = ({
-  products,
-  currentPage,
-  pageSize,
-  onPageChange,
-  total,
-}) => {
+
+export const ProductGrid = ({ products }) => {
+  const pageSize = 9;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const startIndex = (currentPage - 1) * pageSize;
+  const currentProducts = products.slice(startIndex, startIndex + pageSize);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Tính số slot trống để bổ sung
+  const remainder = currentProducts.length % 3;
+  const emptySlots = remainder === 0 ? 0 : 3 - remainder;
+
   return (
     <>
-      <Row gutter={[16, 16]} style={{ minHeight: "600px" }}>
-        {products.map((product) => (
-          <Col key={product.id} xs={24} sm={12} md={8}>
-            <ProductCard product={product} />
+      <Row gutter={[24, 24]} align="stretch">
+        {currentProducts.map((product) => (
+          <Col
+            key={product.id}
+            xs={24}
+            sm={12}
+            md={8}
+            style={{ display: "flex" }}
+          >
+            <div style={{ flex: 1 }}>
+              <ProductCard product={product} />
+            </div>
+          </Col>
+        ))}
+
+        {/* Cột rỗng để giữ layout nếu thiếu sản phẩm trên hàng cuối */}
+        {Array.from({ length: emptySlots }).map((_, index) => (
+          <Col
+            key={`empty-${index}`}
+            xs={24}
+            sm={12}
+            md={8}
+            style={{ display: "flex" }}
+          >
+            <div style={{ flex: 1, visibility: "hidden" }}>
+              <ProductCard product={{}} />
+            </div>
           </Col>
         ))}
       </Row>
 
       <Row justify="center" style={{ marginTop: 32, marginBottom: 32 }}>
-        <Col>
-          <Pagination
-            current={currentPage}
-            pageSize={pageSize}
-            total={total}
-            onChange={onPageChange}
-          />
-        </Col>
+        <Pagination
+          current={currentPage}
+          pageSize={pageSize}
+          total={products.length}
+          onChange={handlePageChange}
+        />
       </Row>
     </>
   );
 };
+
+
+

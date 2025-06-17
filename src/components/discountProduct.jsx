@@ -38,7 +38,6 @@ const NextArrow = ({ onClick }) => (
 );
 
 const ProductCard = ({ product }) => (
-  console.log("product.image:", product.image),
   <Card
     hoverable
     style={{

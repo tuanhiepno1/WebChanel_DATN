@@ -1,7 +1,7 @@
 import axios from "axios";
-import axiosClient from '@api/axiosClient';
+import axiosClient from "@api/axiosClient";
 
-const API_BASE = "http://localhost:3001";  // Đổi thành URL backend của bạn
+const API_BASE = "http://localhost:3001"; // Đổi thành URL backend của bạn
 
 // Nước hoa
 export const fetchPerfumes = async () => {
@@ -12,12 +12,107 @@ export const fetchPerfumes = async () => {
 export const fetchActiveProductCategories = async () => {
   try {
     const response = await axiosClient.get("/categories");
-    return response.data.filter(category => category.status === "active");
+    return response.data.filter((category) => category.status === "active");
   } catch (error) {
     console.error("Lỗi khi lấy danh mục sản phẩm:", error);
     throw error;
   }
 };
+
+export const fetchProductsByCategory = async (id_category) => {
+  try {
+    const response = await axiosClient.get(`/products-by-category/${id_category}`);
+    return response.data?.data || []; // luôn trả về mảng
+  } catch (error) {
+    console.error("Lỗi khi lấy sản phẩm theo danh mục:", error);
+    return []; // tránh throw khi category không có sản phẩm
+  }
+};
+
+export const fetchProductsBySubcategory = async (id_subcategory) => {
+  try {
+    const response = await axiosClient.get(`/products-by-subcategory/${id_subcategory}`);
+    return response.data?.data || [];
+  } catch (error) {
+    if (error.response?.status === 404) {
+      console.warn(`Không tìm thấy sản phẩm cho danh mục con id=${id_subcategory}`);
+      return []; // trả về mảng rỗng thay vì throw
+    }
+    console.error("Lỗi khi lấy sản phẩm theo danh mục con:", error);
+    return [];
+  }
+};
+
+
+export const fetchProductsByCategorySlug = async (slug) => {
+  try {
+    const categories = await fetchActiveProductCategories();
+
+    // Tìm trong subcategories trước
+    for (const cat of categories) {
+      const sub = cat.subcategories?.find((sub) => sub.slug === slug);
+      if (sub) {
+        const rawProducts = await fetchProductsByCategory(sub.id_category);
+        const products = mapProducts(rawProducts);
+
+        return {
+          products,
+          category: {
+            category_name: sub.category_name,
+            subcategories: cat.subcategories || [],
+          },
+        };
+      }
+    }
+
+    // Nếu không khớp danh mục con, tìm trong danh mục cha
+    const matchedParent = categories.find((cat) => cat.slug === slug);
+    if (matchedParent) {
+      const subIds = matchedParent.subcategories?.map((sub) => sub.id_subcategory) || [];
+
+      const productResults = await Promise.all(
+        subIds.map(async (id) => {
+          try {
+            const items = await fetchProductsBySubcategory(id);
+            return mapProducts(items);
+          } catch (error) {
+            console.warn(`Không lấy được sản phẩm cho subcategory id=${id}`);
+            return [];
+          }
+        })
+      );
+
+      const allProducts = productResults.flat();
+
+      return {
+        products: allProducts,
+        category: {
+          category_name: matchedParent.category_name,
+          subcategories: matchedParent.subcategories || [],
+        },
+      };
+    }
+
+    throw new Error(`Không tìm thấy danh mục hoặc danh mục con với slug = ${slug}`);
+  } catch (error) {
+    console.error("Lỗi khi lấy sản phẩm theo slug:", error);
+    throw error;
+  }
+};
+
+// Tiện ích định dạng sản phẩm
+const mapProducts = (items) =>
+  (items || []).map((item) => ({
+    id: item.id_product,
+    name: item.name,
+    image: item.image,
+    price: `${item.price.toLocaleString()}₫`,
+    rating: item.rating || 0,
+  }));
+
+
+
+
 
 export const fetchFeaturedProducts = async () => {
   try {
@@ -44,5 +139,3 @@ export const fetchNewProducts = async () => {
     return [];
   }
 };
-
-
