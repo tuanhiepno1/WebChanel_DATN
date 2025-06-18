@@ -8,7 +8,7 @@ const endPoints = {
   FORGOT_PASSWORD_CODE: "/forgot-password/code",
   FORGOT_PASSWORD_RESET: "/forgot-password/reset",
   CATEGORY: "/category/:slug",
-  PRODUCT_DETAIL: "/product/:id",
+  PRODUCT_DETAIL: "/category/:slug/:id",
   TINTUC: "/tin-tuc",
   LIENHE: "/lien-he",
   GIOHANG: "/gio-hang",

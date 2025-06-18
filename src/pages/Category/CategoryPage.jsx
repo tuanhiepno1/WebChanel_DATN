@@ -5,7 +5,11 @@ import HeaderComponent from "@components/header";
 import FooterComponent from "@components/footer";
 import GenericSidebar from "@components/sideBarShop";
 import { ProductGrid } from "@components/proDucts";
-import { fetchProductsByCategorySlug } from "@api/productApi";
+import {
+  fetchProductsByCategorySlug,
+  fetchProductsBySubcategory,
+  mapProducts,
+} from "@api/productApi";
 import { motion } from "framer-motion";
 
 const { Content } = Layout;
@@ -21,7 +25,9 @@ const CategoryPage = () => {
       setLoading(true);
       try {
         const res = await fetchProductsByCategorySlug(slug);
-        const safeProducts = Array.isArray(res?.products) ? res.products : [];
+        const safeProducts = Array.isArray(res?.products)
+          ? res.products.map((p) => ({ ...p, category_slug: slug }))
+          : [];
         const safeCategory = res?.category || {};
         setProducts(safeProducts);
         setCategory(safeCategory);
@@ -34,6 +40,22 @@ const CategoryPage = () => {
 
     loadData();
   }, [slug]);
+
+  const handleFilterBySubcategory = async (id_subcategory) => {
+    setLoading(true);
+    try {
+      const subProducts = await fetchProductsBySubcategory(id_subcategory);
+      const mapped = mapProducts(subProducts).map((p) => ({
+        ...p,
+        category_slug: slug, // 👈 thêm slug của danh mục chính
+      }));
+      setProducts(mapped);
+    } catch (error) {
+      console.error("Lỗi lọc sản phẩm theo danh mục con:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Layout>
@@ -63,6 +85,7 @@ const CategoryPage = () => {
                   title={category?.category_name || "Danh mục"}
                   categories={category?.subcategories || []}
                   featuredProducts={products.slice(0, 5)}
+                  onSubcategoryClick={handleFilterBySubcategory}
                 />
               </motion.div>
             )}

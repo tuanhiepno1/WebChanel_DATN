@@ -101,16 +101,52 @@ export const fetchProductsByCategorySlug = async (slug) => {
 };
 
 // Tiện ích định dạng sản phẩm
-const mapProducts = (items) =>
+export const mapProducts = (items) =>
   (items || []).map((item) => ({
     id: item.id_product,
     name: item.name,
     image: item.image,
+    slug: getSlugFromCategory(item.id_category), // Thêm dòng này
     price: `${item.price.toLocaleString()}₫`,
     rating: item.rating || 0,
   }));
 
+// Hàm phụ (tuỳ bạn xử lý sao cho đúng slug tương ứng id_category)
+const getSlugFromCategory = (id_category) => {
+  const map = {
+    1: "nuoc-hoa",
+    2: "mat-kinh",
+    3: "dong-ho",
+    4: "trang-diem",
+  };
+  return map[id_category] || "san-pham";
+};
 
+
+export const fetchProductById = async (id_product) => {
+  const response = await axiosClient.get(`/products/${id_product}`);
+  return response.data?.data;
+};
+
+export const mapProductDetail = (item) => ({
+  id: item.id_product,
+  categoryId: item.id_category,
+  name: item.name,
+  image: item.image,
+  price: item.price,
+  rating: item.rating || 0,
+  gender: item.gender,
+  volume: item.volume,
+  type: item.type,
+  quantity: item.quantity,
+  views: item.views,
+  discount: item.discount,
+  description: item.description,
+  note: item.note,
+  status: item.status,
+  createdAt: item.created_at,
+  updatedAt: item.updated_at,
+});
 
 
 

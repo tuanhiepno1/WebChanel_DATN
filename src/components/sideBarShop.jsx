@@ -4,7 +4,7 @@ import { RightOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
-const GenericSidebar = ({ title, categories, featuredProducts }) => {
+const GenericSidebar = ({ title, categories, featuredProducts, onSubcategoryClick }) => {
   const [priceRange, setPriceRange] = useState([500000, 2000000]);
 
   return (
@@ -31,27 +31,30 @@ const GenericSidebar = ({ title, categories, featuredProducts }) => {
       {/* Danh mục sản phẩm */}
       <Divider orientation="left">Bạn muốn tìm loại {title} ?</Divider>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {categories.map((cat, index) => (
-          <div
-            key={typeof cat === "string" ? cat : cat.id ?? index}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "4px 8px",
-              borderRadius: 4,
-              cursor: "pointer",
-              transition: "background 0.2s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0f0")}
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "transparent")
-            }
-          >
-            <Text>{typeof cat === "string" ? cat : cat.category_name}</Text>
-            <RightOutlined style={{ fontSize: 12 }} />
-          </div>
-        ))}
+        {categories.map((cat, index) => {
+  const idSub = cat.id_subcategory || cat.id;
+
+  return (
+    <div
+      key={idSub ?? index}
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "4px 8px",
+        borderRadius: 4,
+        cursor: "pointer",
+        transition: "background 0.2s",
+      }}
+      onClick={() => onSubcategoryClick?.(idSub)}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0f0")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <Text>{typeof cat === "string" ? cat : cat.category_name}</Text>
+      <RightOutlined style={{ fontSize: 12 }} />
+    </div>
+  );
+})}
       </div>
 
       {/* Sản phẩm nổi bật */}

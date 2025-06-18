@@ -8,7 +8,7 @@ import ForgotPasswordPage from '@components/ForgotPasswordPage';
 import VerifyCodePage from '@components/VerifyCodePage';
 import ResetPasswordPage from '@components/ResetPasswordPage';
 import CategoryPage from '@pages/Category/CategoryPage';
-import NuocHoaDetail from '@pages/ShopChiTiet/nuocHoaChiTiet';
+import ProductDetailPage from '@pages/ProductDetail/ProductDetailPage';
 import CartPage from '@pages/Cart/gioHang';
 import endPoints from '@routes/router';
 
@@ -25,7 +25,7 @@ const App = () => {
         <Route path={endPoints.FORGOT_PASSWORD_CODE} element={<VerifyCodePage />} />
         <Route path={endPoints.FORGOT_PASSWORD_RESET} element={<ResetPasswordPage />} />
         <Route path={endPoints.CATEGORY} element={<CategoryPage />} />
-        <Route path={endPoints.PRODUCT_DETAIL} element={<NuocHoaDetail />} />
+        <Route path={endPoints.PRODUCT_DETAIL} element={<ProductDetailPage />} />
         <Route path={endPoints.GIOHANG} element={<CartPage />} />
       </Routes>
     </Router>
