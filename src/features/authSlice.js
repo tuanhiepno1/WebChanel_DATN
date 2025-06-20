@@ -22,7 +22,6 @@ export const login = createAsyncThunk(
     try {
       const data = await loginUser(credentials);
 
-      // Lưu token và userId
       localStorage.setItem("token", data.token);
       localStorage.setItem("userId", data.user.id);
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -34,6 +33,7 @@ export const login = createAsyncThunk(
   }
 );
 
+// Đăng nhập + Load cart
 export const loginAndLoadCart = (credentials) => async (dispatch) => {
   const result = await dispatch(login(credentials));
   if (login.fulfilled.match(result)) {
@@ -44,9 +44,10 @@ export const loginAndLoadCart = (credentials) => async (dispatch) => {
   return result;
 };
 
+// Logout + clear cart
 export const logoutAndClearCart = () => (dispatch) => {
-  dispatch(logout());        // ✅ gọi logout từ authSlice
-  dispatch(clearCart());     // ✅ gọi xóa cart từ cartSlice
+  dispatch(logout());
+  dispatch(clearCart());
 };
 
 const authSlice = createSlice({
@@ -65,10 +66,13 @@ const authSlice = createSlice({
       localStorage.removeItem("userId");
       localStorage.removeItem("user");
     },
+    updateUserInfo: (state, action) => {
+      state.user = { ...state.user, ...action.payload };
+      localStorage.setItem("user", JSON.stringify(state.user));
+    },
   },
   extraReducers: (builder) => {
     builder
-      // Đăng ký
       .addCase(register.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -81,7 +85,6 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Đăng nhập
       .addCase(login.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -98,6 +101,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout } = authSlice.actions;
+export const { logout, updateUserInfo } = authSlice.actions;
 export default authSlice.reducer;
-

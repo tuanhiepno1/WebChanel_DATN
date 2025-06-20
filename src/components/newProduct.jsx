@@ -99,7 +99,7 @@ const ProductCard = ({ product }) => (
         onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
       />
     }
-    bodyStyle={{ textAlign: "center" }}
+    styles={{ textAlign: "center" }}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = "scale(1.03)";
       e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.2)";

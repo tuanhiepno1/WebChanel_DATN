@@ -36,6 +36,21 @@ export const loginUser = async ({ email, password }) => {
   }
 };
 
+export const fetchOrderHistoryByUserId = async (id_user) => {
+  try {
+    const response = await axiosClient.get(`/order-history/${id_user}`);
+    return response.data.data || [];
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy lịch sử đơn hàng:", error);
+    return [];
+  }
+};
+
+export const updateUser = async (id, updatedData) => {
+  const response = await axiosClient.put(`/users/${id}`, updatedData);
+  return response.data;
+};
+
 // Gửi email và mã code
 export const checkEmailAndSendCode = async (email) => {
   try {

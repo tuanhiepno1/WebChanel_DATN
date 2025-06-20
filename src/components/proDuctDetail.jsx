@@ -59,10 +59,14 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
       >
         <div style={{ maxWidth: 1200, margin: "0 auto 24px" }}>
           <Button
-            type="link"
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate(-1)}
-            style={{ paddingLeft: 0 }}
+            style={{
+              marginBottom: 16,
+              backgroundColor: "#DBB671",
+              borderColor: "#DBB671",
+              color: "#000",
+            }}
           >
             Quay lại
           </Button>

@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "@assets/images/logo2.jpg";
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { logoutAndClearCart} from "@features/authSlice";
+import { logoutAndClearCart } from "@features/authSlice";
 import { fetchActiveProductCategories } from "@api/productApi";
 
 const { Header } = Layout;
@@ -139,9 +139,23 @@ const HeaderComponent = () => {
               }}
             >
               <UserOutlined style={{ fontSize: 22 }} />
-              {isLoggedIn && <span>{user?.username}</span>}
+              {isLoggedIn && (
+                <span
+                  title={user?.username}
+                  style={{
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: 100,
+                    display: "inline-block",
+                  }}
+                >
+                  {user?.username}
+                </span>
+              )}
             </div>
           </Dropdown>
+
           <ShoppingCartOutlined
             onClick={() => navigate("/gio-hang")}
             style={{ fontSize: "28px", cursor: "pointer" }}

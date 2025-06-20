@@ -1,10 +1,27 @@
-import React from "react";
-import { Row, Col, Button, Input, Checkbox, Divider, Radio, Space } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import React, { useState, useEffect } from "react";
+import {
+  Row,
+  Col,
+  Button,
+  Input,
+  Checkbox,
+  Divider,
+  Radio,
+  Space,
+  Modal,
+  Form,
+} from "antd";
+import {
+  DeleteOutlined,
+  ArrowLeftOutlined,
+  ArrowRightOutlined,
+} from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { removeFromCart, updateQuantity } from "@redux/cartSlice";
 import Header from "@components/Header";
 import Footer from "@components/Footer";
+import DeliveryInfoForm from "@components/DeliveryInfoForm";
+import CheckoutModal from "@components/CheckoutModal";
 import { useNavigate } from "react-router-dom";
 
 const CartPage = () => {
@@ -12,11 +29,28 @@ const CartPage = () => {
   const navigate = useNavigate();
   const cartItems = useSelector((state) => state.cart.items);
   const user = useSelector((state) => state.auth.user);
+  const [form] = Form.useForm();
 
-  const [paymentMethod, setPaymentMethod] = React.useState("vnpay");
-  const [selectedIds, setSelectedIds] = React.useState(
+  const [paymentMethod, setPaymentMethod] = useState("vnpay");
+  const [selectedIds, setSelectedIds] = useState(
     cartItems.map((item) => item.id)
   );
+
+  const [deliveryInfo, setDeliveryInfo] = useState({
+    name: user?.username || "",
+    phone: user?.phone || "",
+    address: user?.address || "",
+  });
+
+  const [openDeliveryModal, setOpenDeliveryModal] = useState(false);
+  const [tempDeliveryInfo, setTempDeliveryInfo] = useState(deliveryInfo);
+  const [checkoutVisible, setCheckoutVisible] = useState(false);
+
+  useEffect(() => {
+    if (openDeliveryModal) {
+      setTempDeliveryInfo(deliveryInfo); // Sync lại khi mở modal
+    }
+  }, [openDeliveryModal]);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) =>
@@ -43,6 +77,11 @@ const CartPage = () => {
   }, 0);
   const shippingFee = paymentMethod === "cod" ? 30000 : 0;
   const finalTotal = totalPrice + shippingFee;
+
+  const handleSaveDeliveryInfo = () => {
+    setDeliveryInfo(tempDeliveryInfo);
+    setOpenDeliveryModal(false);
+  };
 
   return (
     <>
@@ -154,10 +193,28 @@ const CartPage = () => {
             )}
 
             <div style={{ marginTop: 24 }}>
-              <Button onClick={() => navigate(-1)} style={{ marginRight: 12 }}>
+              <Button
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate(-1)}
+                style={{
+                  marginBottom: 16,
+                  backgroundColor: "#DBB671",
+                  borderColor: "#DBB671",
+                  color: "#000",
+                }}
+              >
                 Quay lại
               </Button>
+
               <Button
+                icon={<ArrowRightOutlined />}
+                style={{
+                  marginBottom: 16,
+                  backgroundColor: "#DBB671",
+                  borderColor: "#DBB671",
+                  color: "#000",
+                  marginLeft: 16,
+                }}
                 onClick={() => {
                   const lastSlug =
                     localStorage.getItem("lastCategorySlug") || "all";
@@ -184,22 +241,17 @@ const CartPage = () => {
             >
               <div>
                 <h3>THÔNG TIN NGƯỜI NHẬN HÀNG:</h3>
-                {user ? (
-                  <>
-                    <p style={{ marginBottom: 4 }}>
-                      {user.username} | {user.phone}
-                    </p>
-                    <p style={{ marginBottom: 8 }}>Địa chỉ: {user.address}</p>
-                  </>
-                ) : (
-                  <>
-                    <p>Chưa đăng nhập.</p>
-                  </>
-                )}
+                <p style={{ marginBottom: 4 }}>
+                  {deliveryInfo.name} | {deliveryInfo.phone}
+                </p>
+                <p style={{ marginBottom: 8 }}>
+                  Địa chỉ: {deliveryInfo.address}
+                </p>
               </div>
 
               <Button
                 size="small"
+                onClick={() => setOpenDeliveryModal(true)}
                 style={{
                   backgroundColor: "#FFE0A7",
                   borderColor: "#FFE0A7",
@@ -266,6 +318,7 @@ const CartPage = () => {
 
               <Button
                 block
+                onClick={() => setCheckoutVisible(true)}
                 style={{
                   backgroundColor: "#DBB671",
                   borderColor: "#DBB671",
@@ -280,6 +333,55 @@ const CartPage = () => {
           </Col>
         </Row>
       </div>
+
+      {/* ✅ Modal chỉnh sửa thông tin */}
+      <Modal
+        title="Chỉnh sửa thông tin nhận hàng"
+        open={openDeliveryModal}
+        onCancel={() => setOpenDeliveryModal(false)}
+        onOk={() => {
+          form
+            .validateFields()
+            .then(() => {
+              handleSaveDeliveryInfo(); // Cập nhật deliveryInfo
+            })
+            .catch((err) => {
+              console.log("Validation Error:", err);
+            });
+        }}
+        okText="Lưu"
+        cancelText="Hủy"
+        okButtonProps={{
+          style: {
+            backgroundColor: "#DBB671",
+            borderColor: "#DBB671",
+            color: "#000",
+            fontWeight: 600,
+          },
+        }}
+      >
+        <DeliveryInfoForm
+          info={tempDeliveryInfo}
+          setInfo={setTempDeliveryInfo}
+          form={form}
+        />
+      </Modal>
+
+      <CheckoutModal
+        visible={checkoutVisible}
+        onCancel={() => setCheckoutVisible(false)}
+        onConfirm={() => {
+          setCheckoutVisible(false);
+          message.success("Đặt hàng thành công!");
+          // Gọi API nếu cần ở đây
+        }}
+        deliveryInfo={deliveryInfo}
+        cartItems={cartItems}
+        selectedIds={selectedIds}
+        paymentMethod={paymentMethod}
+        total={finalTotal}
+      />
+
       <Footer />
     </>
   );

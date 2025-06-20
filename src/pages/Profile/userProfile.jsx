@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Card,
   Descriptions,
@@ -9,6 +8,7 @@ import {
   List,
   Typography,
   Tag,
+  Divider,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -21,56 +21,65 @@ import {
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { fetchOrderHistoryByUserId } from "@api/userApi";
 import endPoints from "@routes/router";
 import HeaderComponent from "@components/Header";
 import FooterComponent from "@components/Footer";
+import EditUserModal from "@components/EditUserModal";
 
 const { Text, Title } = Typography;
 
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
+  const [orderHistory, setOrderHistory] = useState([]);
+  const [editVisible, setEditVisible] = useState(false);
 
   const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
   const getOrderTag = (status) => {
     switch (status) {
+      case "delivered":
       case "Đã giao":
-        return <Tag color="green">{status}</Tag>;
+        return <Tag color="green">Đã giao</Tag>;
+      case "shipping":
       case "Đang giao":
-        return <Tag color="blue">{status}</Tag>;
+        return <Tag color="blue">Đang giao</Tag>;
+      case "preparing":
       case "Đang xử lý":
-        return <Tag color="orange">{status}</Tag>;
+        return <Tag color="orange">Đang xử lý</Tag>;
+      case "cart":
+        return <Tag color="red">Chưa xác nhận</Tag>;
       default:
         return <Tag>{status}</Tag>;
     }
   };
 
-  // Giả lập đơn hàng
-  const mockOrders = [
-    {
-      id: "001",
-      product: "Nước hoa Dior Sauvage",
-      date: "10/06/2025",
-      status: "Đã giao",
-    },
-    {
-      id: "002",
-      product: "Viktor & Rolf Flowerbomb Perfume",
-      date: "08/06/2025",
-      status: "Đang giao",
-    },
-    {
-      id: "003",
-      product: "Narciso Rodriguez for Her",
-      date: "06/06/2025",
-      status: "Đang xử lý",
-    },
-  ];
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "Không rõ";
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("vi-VN");
+  };
 
-  const shippingAddress =
-    user?.shippingAddress ||
-    "248A Nơ Trang Long, phường 12, Quận Bình Thạnh, TP. Hồ Chí Minh";
+  const formatCurrency = (value) => {
+    const number = Number(value || 0);
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      minimumFractionDigits: 0,
+    }).format(number);
+  };
+
+  useEffect(() => {
+    const loadOrderHistory = async () => {
+      if (user?.id_user) {
+        const data = await fetchOrderHistoryByUserId(user.id_user);
+        setOrderHistory(data);
+      }
+    };
+    loadOrderHistory();
+  }, [user?.id_user]);
 
   if (!user) {
     return (
@@ -110,10 +119,14 @@ const UserProfile = () => {
       >
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
           <Button
-            type="link"
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate(-1)}
-            style={{ marginBottom: 16 }}
+            style={{
+              marginBottom: 16,
+              backgroundColor: "#DBB671",
+              borderColor: "#DBB671",
+              color: "#000",
+            }}
           >
             Quay lại
           </Button>
@@ -129,6 +142,18 @@ const UserProfile = () => {
                 <div style={{ fontSize: 18, fontWeight: 600 }}>
                   {user?.username}
                 </div>
+                <Button
+                  type="primary"
+                  style={{
+                    marginTop: 16,
+                    backgroundColor: "#DBB671",
+                    borderColor: "#DBB671",
+                    color: "#000",
+                  }}
+                  onClick={() => setEditVisible(true)}
+                >
+                  Sửa thông tin
+                </Button>
               </Col>
 
               <Col xs={24} sm={16}>
@@ -140,16 +165,16 @@ const UserProfile = () => {
                     <MailOutlined /> {user.email}
                   </Descriptions.Item>
                   <Descriptions.Item label="Số điện thoại">
-                    <PhoneOutlined /> {user.phone || "Chưa cập nhật"}
+                    <PhoneOutlined />{" "}
+                    {user.phone
+                      ? `0${user.phone}`.replace(/^00+/, "0")
+                      : "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Ngày sinh">
                     <CalendarOutlined /> {user.birthday || "Chưa cập nhật"}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Địa chỉ cá nhân">
+                  <Descriptions.Item label="Địa chỉ">
                     <HomeOutlined /> {user.address || "Chưa cập nhật"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Địa chỉ giao hàng">
-                    <EnvironmentOutlined /> {shippingAddress}
                   </Descriptions.Item>
                 </Descriptions>
               </Col>
@@ -160,33 +185,79 @@ const UserProfile = () => {
           <Card
             title={
               <span>
-                <ShoppingOutlined /> Đơn hàng đã đặt
+                <ShoppingOutlined /> Lịch sử đơn hàng
               </span>
             }
             bordered
           >
-            <List
-              dataSource={mockOrders}
-              itemLayout="horizontal"
-              renderItem={(order) => (
-                <List.Item>
-                  <List.Item.Meta
+            {orderHistory.length === 0 ? (
+              <Text type="secondary">Bạn chưa có đơn hàng nào.</Text>
+            ) : (
+              <List
+                dataSource={orderHistory}
+                itemLayout="vertical"
+                renderItem={(order) => (
+                  <Card
+                    key={order.id_order}
+                    style={{ marginBottom: 20 }}
                     title={
-                      <Text strong>
-                        #{order.id} - {order.product}
-                      </Text>
-                    }
-                    description={
                       <span>
-                        Ngày đặt: {order.date} | Trạng thái:{" "}
-                        {getOrderTag(order.status)}
+                        Đơn hàng #{order.id_order} - {getOrderTag(order.status)}{" "}
+                        - Ngày: {formatDate(order.order_date)}
                       </span>
                     }
-                  />
-                </List.Item>
-              )}
-            />
+                    extra={
+                      <Text strong style={{ color: "#d4380d" }}>
+                        Tổng: {formatCurrency(order.total)}
+                      </Text>
+                    }
+                  >
+                    <List
+                      dataSource={order.orderdatails || []}
+                      renderItem={(item) => (
+                        <List.Item>
+                          <List.Item.Meta
+                            avatar={
+                              <img
+                                src={`http://localhost:8000/${item.product.image}`}
+                                alt={item.product.name}
+                                style={{
+                                  width: 60,
+                                  height: 60,
+                                  objectFit: "cover",
+                                  borderRadius: 4,
+                                }}
+                              />
+                            }
+                            title={item.product.name}
+                            description={
+                              <>
+                                <div>Số lượng: {item.quantity}</div>
+                                <div>
+                                  Đơn giá: {formatCurrency(item.product.price)}
+                                </div>
+                                <div>
+                                  Loại: {item.product.type || "Không rõ"}
+                                </div>
+                              </>
+                            }
+                          />
+                        </List.Item>
+                      )}
+                    />
+                  </Card>
+                )}
+              />
+            )}
           </Card>
+          <EditUserModal
+            visible={editVisible}
+            onClose={() => setEditVisible(false)}
+            user={user}
+            onSuccess={() => {
+              setEditVisible(false);
+            }}
+          />
         </div>
       </div>
       <FooterComponent />
