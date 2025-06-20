@@ -1,13 +1,6 @@
-import axios from "axios";
 import axiosClient from "@api/axiosClient";
 
-const API_BASE = "http://localhost:3001"; // Đổi thành URL backend của bạn
 
-// Nước hoa
-export const fetchPerfumes = async () => {
-  const response = await axios.get(`${API_BASE}/perfumes`);
-  return response.data;
-};
 
 export const fetchActiveProductCategories = async () => {
   try {
