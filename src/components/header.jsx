@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "@assets/images/logo2.jpg";
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { logout } from "@features/authSlice";
+import { logoutAndClearCart} from "@features/authSlice";
 import { fetchActiveProductCategories } from "@api/productApi";
 
 const { Header } = Layout;
@@ -25,7 +25,7 @@ const HeaderComponent = () => {
       try {
         const categories = await fetchActiveProductCategories();
         const categoryMenu = categories.slice(0, 4).map((cat) => ({
-          key: `cat-${cat.slug}`, // dùng slug để dò URL sau này
+          key: `cat-${cat.slug}`,
           label: cat.category_name.toUpperCase(),
           path: `/category/${cat.slug}`,
         }));
@@ -61,7 +61,7 @@ const HeaderComponent = () => {
 
   const handleLogout = (e) => {
     e?.domEvent?.stopPropagation();
-    dispatch(logout());
+    dispatch(logoutAndClearCart());
     navigate("/");
   };
 

@@ -1,9 +1,10 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { loginUser, registerUser } from '@api/userApi';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { loginUser, registerUser } from "@api/userApi";
+import { clearCart, loadCartFromUser } from "@redux/cartSlice";
 
 // Đăng ký
 export const register = createAsyncThunk(
-  'auth/register',
+  "auth/register",
   async (payload, { rejectWithValue }) => {
     try {
       const data = await registerUser(payload);
@@ -16,14 +17,15 @@ export const register = createAsyncThunk(
 
 // Đăng nhập
 export const login = createAsyncThunk(
-  'auth/login',
+  "auth/login",
   async (credentials, { rejectWithValue }) => {
     try {
       const data = await loginUser(credentials);
 
       // Lưu token và userId
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('userId', data.user.id);
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", data.user.id);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       return data;
     } catch (err) {
@@ -32,11 +34,26 @@ export const login = createAsyncThunk(
   }
 );
 
+export const loginAndLoadCart = (credentials) => async (dispatch) => {
+  const result = await dispatch(login(credentials));
+  if (login.fulfilled.match(result)) {
+    const userId = result.payload.user.id;
+    const cartData = JSON.parse(localStorage.getItem(`cart_user_${userId}`)) || [];
+    dispatch(loadCartFromUser(cartData));
+  }
+  return result;
+};
+
+export const logoutAndClearCart = () => (dispatch) => {
+  dispatch(logout());        // ✅ gọi logout từ authSlice
+  dispatch(clearCart());     // ✅ gọi xóa cart từ cartSlice
+};
+
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState: {
-    user: null,
-    token: localStorage.getItem('token') || null,
+    user: JSON.parse(localStorage.getItem("user")) || null,
+    token: localStorage.getItem("token") || null,
     loading: false,
     error: null,
   },
@@ -44,8 +61,9 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
-      localStorage.removeItem('token');
-      localStorage.removeItem('userId');
+      localStorage.removeItem("token");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("user");
     },
   },
   extraReducers: (builder) => {
@@ -82,3 +100,4 @@ const authSlice = createSlice({
 
 export const { logout } = authSlice.actions;
 export default authSlice.reducer;
+

@@ -1,17 +1,73 @@
 import React from "react";
 import { Row, Col, Rate, Button, Divider } from "antd";
-import { ShoppingCartOutlined, PayCircleOutlined } from "@ant-design/icons";
+import {
+  ShoppingCartOutlined,
+  PayCircleOutlined,
+  ArrowLeftOutlined,
+} from "@ant-design/icons";
 import Header from "@components/header";
 import Footer from "@components/footer";
 import DiscountProducts from "@components/discountProduct";
+import { useDispatch } from "react-redux";
+import { addToCart } from "@redux/cartSlice";
+import { useNavigate } from "react-router-dom";
 
 const ProductDetailLayout = ({ product, extraInfo = [] }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   if (!product) return <p style={{ padding: 20 }}>Sản phẩm không tồn tại.</p>;
+
+  const handleAddToCart = () => {
+    const {
+      id,
+      name,
+      image,
+      price,
+      rating,
+      category_slug,
+      type,
+      volume,
+      slug,
+    } = product;
+
+    dispatch(
+      addToCart({
+        id,
+        name,
+        image,
+        price,
+        rating,
+        category_slug,
+        type,
+        volume,
+        slug,
+      })
+    );
+    navigate("/gio-hang");
+  };
 
   return (
     <>
       <Header />
-      <div style={{ padding: "32px 64px", minHeight: "calc(100vh - 200px)" }}>
+      <div
+        style={{
+          padding: "32px 64px",
+          minHeight: "calc(100vh - 200px)",
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <div style={{ maxWidth: 1200, margin: "0 auto 24px" }}>
+          <Button
+            type="link"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate(-1)}
+            style={{ paddingLeft: 0 }}
+          >
+            Quay lại
+          </Button>
+        </div>
+
         <div style={{ display: "flex", justifyContent: "center" }}>
           <Row gutter={32} style={{ maxWidth: 1200, width: "100%" }}>
             <Col xs={24} md={10}>
@@ -74,16 +130,17 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
               >
                 <Button
                   icon={<ShoppingCartOutlined />}
+                  onClick={handleAddToCart}
                   style={{
-                    backgroundColor: "#AAA",
-                    color: "#F0FFFF",
-                    border: "1px solid #AAA",
+                    backgroundColor: "#aaa",
+                    color: "#fff",
+                    border: "none",
                     height: 48,
                     fontWeight: 500,
                     width: 500,
                   }}
                 >
-                  THÊM VÀO GIỎ HÀNG 
+                  THÊM VÀO GIỎ HÀNG
                 </Button>
 
                 <Button
@@ -107,17 +164,32 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
         <Divider />
 
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <div style={{ maxWidth: 1200 }}>
+          <div
+            style={{
+              maxWidth: 1200,
+              minHeight: 300,
+              paddingBottom: 16,
+              overflowWrap: "break-word",
+            }}
+          >
             <h2>Mô tả sản phẩm</h2>
             <p style={{ fontSize: 16, lineHeight: 1.6 }}>
               {product.description}
             </p>
           </div>
         </div>
-      </div>
-      
-      <div style={{ marginTop: 32, padding: "0 64px" }}>
-        <DiscountProducts />
+
+        <Divider />
+
+        <div
+          style={{
+            marginTop: 24,
+            paddingBottom: 32,
+            backgroundColor: "#f5f5f5",
+          }}
+        >
+          <DiscountProducts />
+        </div>
       </div>
 
       <Footer />

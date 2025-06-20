@@ -9,7 +9,7 @@ import VerifyCodePage from '@components/VerifyCodePage';
 import ResetPasswordPage from '@components/ResetPasswordPage';
 import CategoryPage from '@pages/Category/CategoryPage';
 import ProductDetailPage from '@pages/ProductDetail/ProductDetailPage';
-import CartPage from '@pages/Cart/gioHang';
+import CartPage from '@pages/Cart/CartPage';
 import endPoints from '@routes/router';
 
 

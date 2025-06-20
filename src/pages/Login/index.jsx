@@ -8,7 +8,7 @@ import {
 } from "@ant-design/icons";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { login } from "@features/authSlice";
+import { loginAndLoadCart } from "@features/authSlice";
 import endPoints from "@routes/router";
 import backgroundImage from "@assets/images/chanel login5.jpg";
 import logo from "@assets/images/logo2.jpg";
@@ -19,12 +19,14 @@ const Login = () => {
   const { loading, error } = useSelector((state) => state.auth);
 
   const onFinish = async (values) => {
-    const result = await dispatch(login(values));
-    if (login.fulfilled.match(result)) {
+    const result = await dispatch(loginAndLoadCart(values));
+
+    // Đảm bảo kết quả không undefined
+    if (result && result.type === "auth/login/fulfilled") {
       message.success("Đăng nhập thành công");
-      navigate("/"); // hoặc endPoints.ALL nếu bạn dùng định nghĩa route
+      navigate("/");
     } else {
-      message.error(result.payload || "Đăng nhập thất bại");
+      message.error(result?.payload || "Đăng nhập thất bại");
     }
   };
 

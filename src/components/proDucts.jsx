@@ -10,10 +10,25 @@ const ProductCard = ({ product }) => {
   const dispatch = useDispatch();
 
   const handleAddToCart = (e) => {
-    e.stopPropagation();
-    dispatch(addToCart(product));
-    navigate("/gio-hang");
-  };
+  e.stopPropagation();
+
+  // Làm sạch price nếu là string
+  const cleanedPrice = typeof product.price === "string"
+    ? product.price.replace(/[^\d]/g, "") // chỉ giữ lại số
+    : product.price;
+
+  const fixedPrice = Number(cleanedPrice) || 0;
+
+  dispatch(
+    addToCart({
+      ...product,
+      price: fixedPrice,
+    })
+  );
+
+  navigate("/gio-hang");
+};
+
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined || value === "") return "0 ₫";
@@ -41,7 +56,6 @@ const ProductCard = ({ product }) => {
         product?.id &&
         product?.category_slug &&
         navigate(`/category/${product.category_slug}/${product.id}`)
-
       }
       style={{
         width: "100%",

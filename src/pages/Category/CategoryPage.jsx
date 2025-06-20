@@ -21,12 +21,13 @@ const CategoryPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    localStorage.setItem("lastCategorySlug", slug);
     const loadData = async () => {
       setLoading(true);
       try {
         const res = await fetchProductsByCategorySlug(slug);
         const safeProducts = Array.isArray(res?.products)
-          ? res.products.map((p) => ({ ...p, category_slug: slug }))
+          ? res.products.map((p) => ({ ...p, category_slug: slug,  }))
           : [];
         const safeCategory = res?.category || {};
         setProducts(safeProducts);
@@ -60,17 +61,15 @@ const CategoryPage = () => {
   return (
     <Layout>
       <HeaderComponent />
-      <Content
-        style={{ maxWidth: "1200px", margin: "20px auto", minHeight: "100vh" }}
-      >
-        <Row gutter={[20, 20]} wrap={false}>
+      <Content style={{ padding: "0 24px", minHeight: "100vh", margin: "20px 0" }}>
+
+        <Row gutter={[20, 20]} wrap>
+          {/* Sidebar trái */}
           <Col
             xs={24}
             md={6}
             style={{
-              flex: "0 0 300px",
-              maxWidth: 300,
-              minWidth: 300,
+              width: "100%",
             }}
           >
             {loading ? (
@@ -91,13 +90,8 @@ const CategoryPage = () => {
             )}
           </Col>
 
-          <Col
-            xs={24}
-            md={18}
-            style={{
-              minHeight: "80vh",
-            }}
-          >
+          {/* Nội dung bên phải */}
+          <Col xs={24} md={18}>
             {loading ? (
               <Row gutter={[16, 16]}>
                 {Array.from({ length: 6 }).map((_, index) => (
