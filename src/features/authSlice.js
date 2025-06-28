@@ -38,7 +38,8 @@ export const loginAndLoadCart = (credentials) => async (dispatch) => {
   const result = await dispatch(login(credentials));
   if (login.fulfilled.match(result)) {
     const userId = result.payload.user.id;
-    const cartData = JSON.parse(localStorage.getItem(`cart_user_${userId}`)) || [];
+    const cartData =
+      JSON.parse(localStorage.getItem(`cart_user_${userId}`)) || [];
     dispatch(loadCartFromUser(cartData));
   }
   return result;
@@ -67,8 +68,20 @@ const authSlice = createSlice({
       localStorage.removeItem("user");
     },
     updateUserInfo: (state, action) => {
-      state.user = { ...state.user, ...action.payload };
-      localStorage.setItem("user", JSON.stringify(state.user));
+      const updatedUser = {
+        ...state.user,
+        ...action.payload,
+      };
+
+      // Xử lý ảnh nếu là đường dẫn tương đối
+      if (updatedUser.image && !updatedUser.image.startsWith("http")) {
+        updatedUser.image = `${import.meta.env.VITE_ASSET_BASE_URL}${
+          updatedUser.image
+        }`;
+      }
+
+      state.user = updatedUser;
+      localStorage.setItem("user", JSON.stringify(updatedUser));
     },
   },
   extraReducers: (builder) => {

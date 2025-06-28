@@ -66,11 +66,14 @@ const HeaderComponent = () => {
   };
 
   const userMenuItems = isLoggedIn
-    ? [
-        { key: "profile", label: <Link to="/profile">Thông tin cá nhân</Link> },
-        { key: "logout", label: "Đăng xuất", onClick: handleLogout },
-      ]
-    : [{ key: "login", label: <Link to="/login">Đăng nhập</Link> }];
+  ? [
+      ...(user?.role === 1
+        ? [{ key: "admin", label: <Link to="/admin/dashboard">Quản trị</Link> }]
+        : []),
+      { key: "profile", label: <Link to="/profile">Thông tin cá nhân</Link> },
+      { key: "logout", label: "Đăng xuất", onClick: handleLogout },
+    ]
+  : [{ key: "login", label: <Link to="/login">Đăng nhập</Link> }];
 
   const handleMenuClick = ({ key }) => {
     const selectedItem = menuItems.find((item) => item.key === key);

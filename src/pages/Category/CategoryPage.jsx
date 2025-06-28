@@ -21,26 +21,37 @@ const CategoryPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem("lastCategorySlug", slug);
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const res = await fetchProductsByCategorySlug(slug);
-        const safeProducts = Array.isArray(res?.products)
-          ? res.products.map((p) => ({ ...p, category_slug: slug,  }))
-          : [];
-        const safeCategory = res?.category || {};
-        setProducts(safeProducts);
-        setCategory(safeCategory);
-      } catch (err) {
-        console.error("Lỗi khi load danh mục:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  localStorage.setItem("lastCategorySlug", slug);
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchProductsByCategorySlug(slug);
+      const safeProducts = Array.isArray(res?.products)
+        ? res.products.map((p) => ({ ...p, category_slug: slug }))
+        : [];
 
-    loadData();
-  }, [slug]);
+      const rawCategory = res?.category || {};
+      const activeSubcategories = rawCategory.subcategories?.filter(
+        (sub) => sub.status === "active"
+      ) || [];
+
+      const safeCategory = {
+        ...rawCategory,
+        subcategories: activeSubcategories,
+      };
+
+      setProducts(safeProducts);
+      setCategory(safeCategory);
+    } catch (err) {
+      console.error("Lỗi khi load danh mục:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadData();
+}, [slug]);
+
 
   const handleFilterBySubcategory = async (id_subcategory) => {
     setLoading(true);
@@ -48,7 +59,7 @@ const CategoryPage = () => {
       const subProducts = await fetchProductsBySubcategory(id_subcategory);
       const mapped = mapProducts(subProducts).map((p) => ({
         ...p,
-        category_slug: slug, // 👈 thêm slug của danh mục chính
+        category_slug: slug,
       }));
       setProducts(mapped);
     } catch (error) {

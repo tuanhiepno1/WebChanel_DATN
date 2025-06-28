@@ -20,18 +20,18 @@ const Register = () => {
   const { loading, error } = useSelector((state) => state.auth);
 
   const onFinish = async (values) => {
-  try {
-    const payload = { ...values };
+    try {
+      const payload = { ...values };
 
-    console.log("👉 Payload gửi lên đăng ký:", payload);
+      console.log("👉 Payload gửi lên đăng ký:", payload);
 
-    await dispatch(register(payload)).unwrap();
-    message.success("Đăng ký thành công!");
-    navigate("/login");
-  } catch (err) {
-    message.error(err || "Đăng ký thất bại");
-  }
-};
+      await dispatch(register(payload)).unwrap();
+      message.success("Đăng ký thành công!");
+      navigate("/login");
+    } catch (err) {
+      message.error(err || "Đăng ký thất bại");
+    }
+  };
 
   return (
     <div
@@ -150,7 +150,10 @@ const Register = () => {
             <Form.Item
               label="Mật khẩu"
               name="password"
-              rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}
+              rules={[
+                { required: true, message: "Vui lòng nhập mật khẩu" },
+                { min: 6, message: "Mật khẩu ít nhất 6 ký tự" },
+              ]}
             >
               <Input.Password
                 placeholder="Mật khẩu"

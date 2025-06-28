@@ -27,6 +27,7 @@ import endPoints from "@routes/router";
 import HeaderComponent from "@components/Header";
 import FooterComponent from "@components/Footer";
 import EditUserModal from "@components/EditUserModal";
+import ChangePasswordModal from "@components/ChangePasswordModal";
 
 const { Text, Title } = Typography;
 
@@ -35,6 +36,7 @@ const UserProfile = () => {
   const navigate = useNavigate();
   const [orderHistory, setOrderHistory] = useState([]);
   const [editVisible, setEditVisible] = useState(false);
+  const [changePasswordVisible, setChangePasswordVisible] = useState(false);
 
   const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
@@ -131,14 +133,18 @@ const UserProfile = () => {
             Quay lại
           </Button>
 
-          <Card bordered style={{ marginBottom: 24 }}>
+          <Card variant style={{ marginBottom: 24 }}>
             <Row gutter={[32, 32]}>
               <Col xs={24} sm={8} style={{ textAlign: "center" }}>
                 <Avatar
-                  src={user.avatar || defaultAvatar}
+                  src={user.image || defaultAvatar}
                   size={150}
+                  onError={() =>
+                    console.warn("Không load được avatar:", user.image)
+                  }
                   style={{ marginBottom: 16 }}
                 />
+
                 <div style={{ fontSize: 18, fontWeight: 600 }}>
                   {user?.username}
                 </div>
@@ -153,6 +159,20 @@ const UserProfile = () => {
                   onClick={() => setEditVisible(true)}
                 >
                   Sửa thông tin
+                </Button>
+
+                <Button
+                  type="primary"
+                  style={{
+                    marginTop: 16,
+                    marginLeft: 8,
+                    backgroundColor: "#DBB671",
+                    borderColor: "#DBB671",
+                    color: "#000",
+                  }}
+                  onClick={() => setChangePasswordVisible(true)}
+                >
+                  Đổi mật khẩu
                 </Button>
               </Col>
 
@@ -259,6 +279,12 @@ const UserProfile = () => {
             }}
           />
         </div>
+
+        <ChangePasswordModal
+          visible={changePasswordVisible}
+          onCancel={() => setChangePasswordVisible(false)}
+          email={user.email}
+        />
       </div>
       <FooterComponent />
     </>

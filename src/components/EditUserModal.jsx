@@ -1,15 +1,18 @@
-import React, { useEffect } from "react";
-import { Modal, Form, Input, message } from "antd";
+import React, { useEffect, useState } from "react";
+import { Modal, Form, Input, message, Upload, Button } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
 import { useDispatch } from "react-redux";
 import { updateUser as updateUserApi } from "@api/userApi";
 import { updateUserInfo } from "@features/authSlice";
+import { image } from "framer-motion/client";
 
 const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
+  const [avatarFile, setAvatarFile] = useState(null);
 
   useEffect(() => {
-    if (visible) {
+    if (visible && user) {
       form.setFieldsValue({
         username: user?.username,
         email: user?.email,
@@ -17,6 +20,7 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
         address: user?.address,
         newPassword: "",
       });
+      setAvatarFile(null); // reset file khi mở modal
     }
   }, [visible, user, form]);
 
@@ -26,29 +30,33 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
       return;
     }
 
+    const updatedPayload = {
+      username: values.username,
+      email: values.email,
+      phone: values.phone,
+      address: values.address,
+      avatar: avatarFile,
+    };
+
+    if (values.newPassword) {
+      updatedPayload.password = values.newPassword;
+    }
+
     try {
-      const updatedPayload = {
-        username: values.username,
-        email: values.email,
-        phone: Number(values.phone),
-        address: values.address,
-      };
-
-      if (values.newPassword) {
-        updatedPayload.password = values.newPassword;
-      }
-
       const response = await updateUserApi(user.id_user, updatedPayload);
-
       dispatch(updateUserInfo(response.user));
-      message.success("Cập nhật thông tin thành công");
+      
+      const userWithFullImage = {
+        ...response.user,
+        image: response.user.image?.startsWith("http")
+          ? response.user.image
+          : `${import.meta.env.VITE_ASSET_BASE_URL}${response.user.image}`,
+      };
+      dispatch(updateUserInfo(userWithFullImage));
 
-      try {
-        onClose(); // tách riêng
-        onSuccess?.(); // tách riêng
-      } catch (callbackError) {
-        console.error("Lỗi callback sau cập nhật:", callbackError);
-      }
+      message.success("Cập nhật thông tin thành công");
+      onClose();
+      onSuccess?.();
     } catch (error) {
       const errorData = error.response?.data;
       const errMsg =
@@ -94,14 +102,6 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
         </Form.Item>
 
         <Form.Item
-          label="Mật khẩu mới"
-          name="newPassword"
-          rules={[{ min: 6, message: "Mật khẩu mới phải ít nhất 6 ký tự" }]}
-        >
-          <Input.Password />
-        </Form.Item>
-
-        <Form.Item
           label="Số điện thoại"
           name="phone"
           rules={[
@@ -121,6 +121,18 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
           rules={[{ required: true, message: "Vui lòng nhập địa chỉ" }]}
         >
           <Input.TextArea />
+        </Form.Item>
+
+        <Form.Item label="Ảnh đại diện">
+          <Upload
+            beforeUpload={(file) => {
+              setAvatarFile(file);
+              return false;
+            }}
+            maxCount={1}
+          >
+            <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
+          </Upload>
         </Form.Item>
       </Form>
     </Modal>

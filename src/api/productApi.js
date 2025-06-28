@@ -5,7 +5,7 @@ import axiosClient from "@api/axiosClient";
 export const fetchActiveProductCategories = async () => {
   try {
     const response = await axiosClient.get("/categories");
-    return response.data.filter((category) => category.status === "active");
+    return response.data.categories.filter((category) => category.status === "active");
   } catch (error) {
     console.error("Lỗi khi lấy danh mục sản phẩm:", error);
     throw error;
@@ -43,16 +43,20 @@ export const fetchProductsByCategorySlug = async (slug) => {
 
     // Tìm trong subcategories trước
     for (const cat of categories) {
-      const sub = cat.subcategories?.find((sub) => sub.slug === slug);
+      const sub = cat.subcategories?.find((sub) => sub.slug === slug && sub.status === 'active');
       if (sub) {
-        const rawProducts = await fetchProductsByCategory(sub.id_category);
+        const rawProducts = await fetchProductsBySubcategory(sub.id_subcategory);
+
         const products = mapProducts(rawProducts);
+
+        // Lọc lại subcategories chỉ lấy active
+        const activeSubcategories = cat.subcategories?.filter(sub => sub.status === 'active') || [];
 
         return {
           products,
           category: {
             category_name: sub.category_name,
-            subcategories: cat.subcategories || [],
+            subcategories: activeSubcategories,
           },
         };
       }
@@ -61,7 +65,9 @@ export const fetchProductsByCategorySlug = async (slug) => {
     // Nếu không khớp danh mục con, tìm trong danh mục cha
     const matchedParent = categories.find((cat) => cat.slug === slug);
     if (matchedParent) {
-      const subIds = matchedParent.subcategories?.map((sub) => sub.id_subcategory) || [];
+      const activeSubcategories = matchedParent.subcategories?.filter(sub => sub.status === 'active') || [];
+
+      const subIds = activeSubcategories.map((sub) => sub.id_subcategory);
 
       const productResults = await Promise.all(
         subIds.map(async (id) => {
@@ -81,7 +87,7 @@ export const fetchProductsByCategorySlug = async (slug) => {
         products: allProducts,
         category: {
           category_name: matchedParent.category_name,
-          subcategories: matchedParent.subcategories || [],
+          subcategories: activeSubcategories,
         },
       };
     }
@@ -92,6 +98,7 @@ export const fetchProductsByCategorySlug = async (slug) => {
     throw error;
   }
 };
+
 
 // Tiện ích định dạng sản phẩm
 export const mapProducts = (items) =>

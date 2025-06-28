@@ -41,15 +41,37 @@ export const fetchOrderHistoryByUserId = async (id_user) => {
     const response = await axiosClient.get(`/order-history/${id_user}`);
     return response.data.data || [];
   } catch (error) {
-    console.error("❌ Lỗi khi lấy lịch sử đơn hàng:", error);
+    console.error("Lỗi khi lấy lịch sử đơn hàng:", error);
     return [];
   }
 };
 
 export const updateUser = async (id, updatedData) => {
-  const response = await axiosClient.put(`/users/${id}`, updatedData);
+  const formData = new FormData();
+
+  formData.append("username", updatedData.username);
+  formData.append("email", updatedData.email);
+  formData.append("phone", updatedData.phone);
+  formData.append("address", updatedData.address);
+
+  if (updatedData.password) {
+    formData.append("password", updatedData.password);
+  }
+
+  if (updatedData.avatar instanceof File) {
+    formData.append("avatar", updatedData.avatar);
+  }
+
+  const response = await axiosClient.post(`/users/${id}`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
   return response.data;
 };
+
+
 
 // Gửi email và mã code
 export const checkEmailAndSendCode = async (email) => {

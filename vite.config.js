@@ -16,6 +16,13 @@ export default defineConfig({
       "@data": path.resolve(__dirname, "./src/data"),
       "@api": path.resolve(__dirname, "./src/api"),
       "@features": path.resolve(__dirname, "./src/features"),
+
+
+      "@admin": path.resolve(__dirname, "./src/ADMIN"),
+      "@adminPages": path.resolve(__dirname, "./src/ADMIN/pages"),
+      "@adminApi": path.resolve(__dirname, "./src/ADMIN/api"),
+      "@adminRoutes": path.resolve(__dirname, "./src/ADMIN/routes"),
+      "@adminComponents": path.resolve(__dirname, "./src/ADMIN/components"),
     },
   },
   server: {
