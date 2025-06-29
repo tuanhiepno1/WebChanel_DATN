@@ -1,5 +1,5 @@
-import React from "react";
-import { Layout, Menu, Avatar } from "antd";
+import React, { useEffect } from "react";
+import { Layout, Menu } from "antd";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   DashboardOutlined,
@@ -19,6 +19,10 @@ const AdminLayout = () => {
   const username = useSelector(
     (state) => state.auth?.user?.username || "Admin"
   );
+
+  useEffect(() => {
+    document.title = "ADMIN Chanel";
+  }, []);
 
   const menuItems = [
     {
@@ -44,15 +48,19 @@ const AdminLayout = () => {
     {
       key: "logout",
       icon: <LogoutOutlined />,
-      label: "Đăng xuất",
+      label: <span style={{ color: "#fff" }}>Đăng xuất</span>,
       onClick: () => dispatch(logoutAndClearCart()),
     },
   ];
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <Sider width={220} style={{ background: "#fff" }}>
-        {/* Logo + Tên admin */}
+      <Sider
+        width={220}
+        style={{
+          backgroundColor: "#1f1f1f",
+        }}
+      >
         <Link
           to="/"
           style={{
@@ -63,20 +71,56 @@ const AdminLayout = () => {
             alignItems: "center",
             gap: 8,
             textDecoration: "none",
-            color: "inherit",
+            color: "#DBB671",
           }}
         >
           <img
-            src="/logo2.png"
+            src="/logo3.png"
             alt="logo"
-            style={{ width: 50, height: 50, objectFit: "contain" }}
+            style={{ width: 60, height: 60, objectFit: "contain" }}
           />
           ADMIN
         </Link>
+
         <Menu
           mode="inline"
           selectedKeys={[location.pathname]}
-          items={menuItems}
+          onClick={({ key }) => {
+            if (key === "logout") {
+              dispatch(logoutAndClearCart());
+            }
+          }}
+          style={{
+            backgroundColor: "#1f1f1f",
+            color: "#fff",
+            borderRight: "none",
+          }}
+          items={menuItems.map((item) => ({
+            ...item,
+            label:
+              item.key === "logout" ? (
+                item.label
+              ) : (
+                <Link style={{ color: "#fff" }} to={item.key}>
+                  {item.label.props.children}
+                </Link>
+              ),
+            style:
+              location.pathname === item.key
+                ? {
+                    backgroundColor: "#DBB671",
+                    color: "#000",
+                    fontWeight: "bold",
+                  }
+                : {
+                    transition: "all 0.3s",
+                  },
+            icon: React.cloneElement(item.icon, {
+              style: {
+                color: location.pathname === item.key ? "#000" : "#DBB671",
+              },
+            }),
+          }))}
         />
       </Sider>
 
@@ -88,12 +132,14 @@ const AdminLayout = () => {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            borderBottom: "1px solid #eee",
           }}
         >
-          {/* Lời chào với icon */}
           <div
             style={{
-              fontSize: 16,
+              fontSize: 18,
+              fontWeight: 500,
+              paddingLeft: 16,
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -106,7 +152,15 @@ const AdminLayout = () => {
           </div>
         </Header>
 
-        <Content style={{ margin: "24px", background: "#fff", padding: 24 }}>
+        <Content
+          style={{
+            margin: "24px",
+            background: "#fff",
+            padding: 24,
+            borderRadius: 8,
+            minHeight: 360,
+          }}
+        >
           <Outlet />
         </Content>
       </Layout>

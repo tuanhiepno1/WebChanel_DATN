@@ -100,7 +100,7 @@ const EditUserModal = ({ visible, onCancel, onSubmit, user }) => {
           </Col>
         </Row>
 
-        <Row gutter={16}>
+        {/* <Row gutter={16}>
           <Col span={12}>
             <Form.Item
               name="role"
@@ -125,7 +125,7 @@ const EditUserModal = ({ visible, onCancel, onSubmit, user }) => {
               </Select>
             </Form.Item>
           </Col>
-        </Row>
+        </Row> */}
 
         <Form.Item
           name="avatar"
