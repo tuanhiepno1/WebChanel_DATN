@@ -10,6 +10,22 @@ export const fetchAdminUsers = async () => {
   }
 };
 
+export const createAdminUser = async (userData) => {
+  const formData = new FormData();
+
+  for (const key in userData) {
+    if (userData[key] !== undefined && userData[key] !== null) {
+      formData.append(key, userData[key]);
+    }
+  }
+
+  const res = await axiosAdmin.post("/users", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  return res.data;
+};
+
 export const updateAdminUser = async (id, formData) => {
   try {
     const res = await axiosAdmin.post(`/users/${id}`, formData, {
@@ -21,6 +37,16 @@ export const updateAdminUser = async (id, formData) => {
   } catch (err) {
     console.error("Lỗi khi cập nhật user:", err.response?.data || err);
     throw err;
+  }
+};
+
+export const deleteAdminUser = async (id_user) => {
+  try {
+    const response = await axiosAdmin.delete(`/users/${id_user}`);
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi khi xoá user:", error);
+    throw error;
   }
 };
 

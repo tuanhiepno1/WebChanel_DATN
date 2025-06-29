@@ -86,6 +86,13 @@ const EditProductModal = ({ visible, onCancel, onSubmit, product }) => {
       cancelText="Hủy"
       destroyOnHidden
       width={1000}
+      okButtonProps={{
+        style: {
+          backgroundColor: "#DBB671",
+          borderColor: "#DBB671",
+          color: "#000",
+        },
+      }}
     >
       <Form layout="vertical" form={form}>
         <Row gutter={[16, 8]}>

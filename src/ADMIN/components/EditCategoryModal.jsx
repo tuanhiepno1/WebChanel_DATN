@@ -21,7 +21,7 @@ const EditCategoryModal = ({
       title="Chỉnh sửa danh mục"
       onCancel={onCancel}
       onOk={onSubmit}
-      okText="Lưu"
+      okText="Cập nhật"
       cancelText="Hủy"
       okButtonProps={{
         style: {

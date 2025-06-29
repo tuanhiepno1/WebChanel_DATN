@@ -39,5 +39,7 @@ export const updateAdminProduct = async (id_product, formData) => {
   }
 };
 
-
+export const deleteAdminProduct = async (id_product) => {
+  return await axiosAdmin.delete(`/products/${id_product}`);
+};
 

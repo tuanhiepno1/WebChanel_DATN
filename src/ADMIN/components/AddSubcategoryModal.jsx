@@ -13,7 +13,11 @@ const AddSubcategoryModal = ({ visible, onCancel, onSubmit, subcategory, setSubc
       okText="Thêm"
       cancelText="Hủy"
       okButtonProps={{
-        style: { backgroundColor: "#16C098", borderColor: "#16C098", color: "#fff" },
+        style: {
+          backgroundColor: "#DBB671",
+          borderColor: "#DBB671",
+          color: "#000",
+        },
       }}
     >
       <Form layout="vertical">

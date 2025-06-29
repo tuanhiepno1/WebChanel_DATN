@@ -42,6 +42,7 @@ const CategoryManagement = () => {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("");
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -83,7 +84,7 @@ const CategoryManagement = () => {
 
       setData(formatted);
 
-      // ✅ return dữ liệu mới ra ngoài
+      // return dữ liệu mới ra ngoài
       return formatted;
     } catch (err) {
       console.error("Lỗi khi tải danh mục:", err);
@@ -126,7 +127,7 @@ const CategoryManagement = () => {
 
       setEditSubModalVisible(false);
 
-      // ✅ reload và cập nhật lại selectedCategory
+      // reload và cập nhật lại selectedCategory
       const updatedData = await reloadCategories();
       const updated = updatedData.find(
         (item) => item.key === selectedCategory.key
@@ -170,88 +171,90 @@ const CategoryManagement = () => {
   };
 
   const handleSubmitEditCategory = async () => {
-  try {
-    const isActivating = editingCategory.status === "active";
+    try {
+      const isActivating = editingCategory.status === "active";
 
-    const currentCategory = data.find(item => item.key === editingCategory.id);
-    const isCurrentlyInactive = currentCategory?.status === "inactive";
+      const currentCategory = data.find(
+        (item) => item.key === editingCategory.id
+      );
+      const isCurrentlyInactive = currentCategory?.status === "inactive";
 
-    const activeCount = data.filter(item => item.status === "active").length;
+      const activeCount = data.filter(
+        (item) => item.status === "active"
+      ).length;
 
-    if (isActivating && isCurrentlyInactive && activeCount >= 4) {
-      Modal.warning({
-        title: "Không thể kích hoạt danh mục",
-        content: "Chỉ được phép có tối đa 4 danh mục hoạt động. Vui lòng tắt hoạt động danh mục khác trước.",
-      });
-      return;
+      if (isActivating && isCurrentlyInactive && activeCount >= 4) {
+        Modal.warning({
+          title: "Không thể kích hoạt danh mục",
+          content:
+            "Chỉ được phép có tối đa 4 danh mục hoạt động. Vui lòng tắt hoạt động danh mục khác trước.",
+        });
+        return;
+      }
+
+      const payload = {};
+
+      const nameEdited = editingCategory.name?.trim() || "";
+      const currentName = currentCategory?.name?.trim() || "";
+
+      if (nameEdited !== currentName) {
+        payload.category_name = nameEdited;
+      }
+
+      if (editingCategory.status !== currentCategory.status) {
+        payload.status = editingCategory.status;
+      }
+
+      if (editingCategory.category_image instanceof File) {
+        payload.category_image = editingCategory.category_image;
+      }
+
+      console.log("== Payload gửi đi:", payload);
+
+      // ⚠️ Nếu không có gì thay đổi thì không gọi API
+      if (Object.keys(payload).length === 0) {
+        Modal.info({
+          title: "Không có thay đổi",
+          content: "Bạn chưa thay đổi thông tin nào để cập nhật.",
+        });
+        return;
+      }
+
+      await updateAdminCategory(editingCategory.id, payload);
+
+      setEditModalVisible(false);
+      setEditingCategory(null);
+      await reloadCategories();
+    } catch (err) {
+      console.error("Lỗi khi cập nhật danh mục:", err);
     }
-
-    // ⚠️ Chỉ gửi những field thay đổi
-    const payload = {};
-
-    const nameEdited = editingCategory.name?.trim() || "";
-    const currentName = currentCategory?.name?.trim() || "";
-
-    if (nameEdited !== currentName) {
-      payload.category_name = nameEdited;
-    }
-
-    if (editingCategory.status !== currentCategory.status) {
-      payload.status = editingCategory.status;
-    }
-
-    if (editingCategory.category_image instanceof File) {
-      payload.category_image = editingCategory.category_image;
-    }
-
-    console.log("== Payload gửi đi:", payload);
-
-    // ⚠️ Nếu không có gì thay đổi thì không gọi API
-    if (Object.keys(payload).length === 0) {
-      Modal.info({
-        title: "Không có thay đổi",
-        content: "Bạn chưa thay đổi thông tin nào để cập nhật.",
-      });
-      return;
-    }
-
-    await updateAdminCategory(editingCategory.id, payload);
-
-    setEditModalVisible(false);
-    setEditingCategory(null);
-    await reloadCategories();
-  } catch (err) {
-    console.error("Lỗi khi cập nhật danh mục:", err);
-  }
-};
-
+  };
 
   const handleSubmitAddCategory = async () => {
-  try {
-    const activeCount = data.filter(
-      (item) => item.status === "active"
-    ).length;
+    try {
+      const activeCount = data.filter(
+        (item) => item.status === "active"
+      ).length;
 
-    if (newCategory.status === "active" && activeCount >= 4) {
-      Modal.warning({
-        title: "Không thể thêm danh mục hoạt động",
-        content:
-          "Chỉ được phép có tối đa 4 danh mục hoạt động. Vui lòng tắt hoạt động danh mục khác trước.",
-      });
-      return;
+      if (newCategory.status === "active" && activeCount >= 4) {
+        Modal.warning({
+          title: "Không thể thêm danh mục hoạt động",
+          content:
+            "Chỉ được phép có tối đa 4 danh mục hoạt động. Vui lòng tắt hoạt động danh mục khác trước.",
+        });
+        return;
+      }
+
+      console.log("== Payload gửi đi:", newCategory);
+      await createAdminCategory(newCategory); // Gửi object, không gửi FormData
+
+      setAddModalVisible(false);
+      setNewCategory({ name: "", status: "active", category_image: null });
+      await reloadCategories();
+    } catch (err) {
+      console.error("Lỗi khi thêm danh mục:", err);
     }
-
-    console.log("== Payload gửi đi:", newCategory); // { name: '', status: '', category_image: File }
-    await createAdminCategory(newCategory); // ✅ Gửi object, không gửi FormData
-
-    setAddModalVisible(false);
-    setNewCategory({ name: "", status: "active", category_image: null });
-    await reloadCategories();
-  } catch (err) {
-    console.error("Lỗi khi thêm danh mục:", err);
-  }
-};
-
+  };
 
   const columns = [
     {
@@ -325,8 +328,10 @@ const CategoryManagement = () => {
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
           marginBottom: 20,
+          flexWrap: "wrap", // để không vỡ layout khi thu nhỏ màn hình
         }}
       >
         <Input
@@ -334,26 +339,33 @@ const CategoryManagement = () => {
           prefix={<SearchOutlined />}
           style={{ width: 300 }}
         />
-        <div style={{ display: "flex", gap: 8 }}>
-          <Select defaultValue="newest" style={{ width: 150 }}>
-            <Option value="newest">Mới nhất</Option>
-            <Option value="oldest">Cũ nhất</Option>
-          </Select>
-          <Button
-            style={{
-              backgroundColor: "#16C098",
-              borderColor: "#16C098",
-              color: "#fff",
-            }}
-            onClick={() => setAddModalVisible(true)}
-          >
-            + Thêm danh mục
-          </Button>
-        </div>
+        <Select
+          placeholder="Lọc theo trạng thái"
+          style={{ width: 150 }}
+          value={filterStatus || undefined}
+          allowClear
+          onChange={(value) => setFilterStatus(value)}
+        >
+          <Option value="active">Hoạt động</Option>
+          <Option value="inactive">Không hoạt động</Option>
+        </Select>
+
+        <Button
+          style={{
+            backgroundColor: "#16C098",
+            borderColor: "#16C098",
+            color: "#fff",
+          }}
+          onClick={() => setAddModalVisible(true)}
+        >
+          + Thêm danh mục
+        </Button>
       </div>
 
       <Table
-        dataSource={data}
+        dataSource={data.filter((item) =>
+          filterStatus ? item.status === filterStatus : true
+        )}
         columns={columns}
         pagination={{ pageSize: 6 }}
         rowKey="key"

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Table, Input, Select, Button, Tag, Space, message } from "antd";
-import { fetchAdminProducts, createAdminProduct, updateAdminProduct } from "@adminApi/productApi";
+import { Table, Input, Select, Button, Tag, Space, message, Modal } from "antd";
+import { fetchAdminProducts, createAdminProduct, updateAdminProduct, deleteAdminProduct } from "@adminApi/productApi";
 import AddProductModal from "@adminComponents/AddProductModal";
 import EditProductModal from "@adminComponents/EditProductModal";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
@@ -43,6 +43,23 @@ const ProductManagement = () => {
       console.error("Lỗi khi cập nhật sản phẩm:", err);
     }
   };
+
+  const handleDelete = (id_product) => {
+  Modal.confirm({
+    title: "Bạn có chắc chắn muốn xóa sản phẩm này?",
+    onOk: async () => {
+      try {
+        await deleteAdminProduct(id_product);
+        message.success("Đã xóa sản phẩm thành công!");
+        await getProducts();
+      } catch (error) {
+        console.error("Lỗi khi xóa sản phẩm:", error);
+        message.error("Xóa sản phẩm thất bại!");
+      }
+    },
+  });
+};
+
 
   const filteredData = products.filter((item) => {
     const matchesStatus = !filterStatus || item.status === filterStatus;

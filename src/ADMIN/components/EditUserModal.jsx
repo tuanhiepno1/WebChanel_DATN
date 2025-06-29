@@ -57,9 +57,16 @@ const EditUserModal = ({ visible, onCancel, onSubmit, user }) => {
       onCancel={onCancel}
       onOk={handleOk}
       title="Sửa thông tin người dùng"
-      okText="Lưu"
+      okText="Cập nhật"
       cancelText="Hủy"
-      destroyOnClose
+      destroyOnHidden
+      okButtonProps={{
+        style: {
+          backgroundColor: "#DBB671",
+          borderColor: "#DBB671",
+          color: "#000",
+        },
+      }}
     >
       <Form layout="vertical" form={form}>
         <Row gutter={16}>
@@ -137,7 +144,9 @@ const EditUserModal = ({ visible, onCancel, onSubmit, user }) => {
             <br />
             <Avatar
               size={64}
-              src={`${import.meta.env.VITE_ASSET_BASE_URL}${user.image}`}
+              src={`${
+                import.meta.env.VITE_ASSET_BASE_URL
+              }/${user.image?.replace(/^\/+/, "")}`}
             />
           </div>
         )}

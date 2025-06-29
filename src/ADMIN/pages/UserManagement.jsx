@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Table, Tag, Input, Select, Button, Space, Avatar, Modal } from "antd";
-import { fetchAdminUsers, updateAdminUser } from "@adminApi/userApi";
+import {
+  fetchAdminUsers,
+  updateAdminUser,
+  createAdminUser,
+  deleteAdminUser,
+} from "@adminApi/userApi";
 import {
   EditOutlined,
   DeleteOutlined,
   UserAddOutlined,
   ShoppingOutlined,
 } from "@ant-design/icons";
+import AddUserModal from "@adminComponents/AddUserModal";
 import EditUserModal from "@adminComponents/EditUserModal";
 import OrderHistoryModal from "@adminComponents/OrderHistoryModal";
 
@@ -21,6 +27,17 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [orderModalVisible, setOrderModalVisible] = useState(false);
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [newUser, setNewUser] = useState({
+    username: "",
+    email: "",
+    password: "",
+    phone: "",
+    address: "",
+    status: "active",
+    role: 1, // 1: Admin, 0: User
+    avatar: null,
+  });
 
   const getUsers = async () => {
     const res = await fetchAdminUsers();
@@ -34,10 +51,24 @@ const UserManagement = () => {
   const handleDelete = (id_user) => {
     Modal.confirm({
       title: "Bạn có chắc chắn muốn xóa người dùng này?",
+      okText: "Xoá",
+      cancelText: "Hủy",
+      okButtonProps: { danger: true },
       onOk: async () => {
-        console.log("Xoá user với ID:", id_user);
-        // TODO: Gọi API xoá user
-        await getUsers();
+        try {
+          await deleteAdminUser(id_user);
+          Modal.success({
+            title: "Đã xoá",
+            content: "Người dùng đã được xoá thành công.",
+          });
+          await getUsers();
+        } catch (err) {
+          console.error("Lỗi khi xoá:", err);
+          Modal.error({
+            title: "Thất bại",
+            content: "Không thể xoá người dùng.",
+          });
+        }
       },
     });
   };
@@ -58,13 +89,20 @@ const UserManagement = () => {
       key: "image",
       align: "center",
       width: 90,
-      render: (img) => (
-        <Avatar
-          src={img ? `${import.meta.env.VITE_ASSET_BASE_URL}${img}` : undefined}
-          alt="avatar"
-          style={{ backgroundColor: "#ccc" }}
-        />
-      ),
+      render: (img) => {
+        const normalizedImg = img?.startsWith("/") ? img.slice(1) : img;
+        return (
+          <Avatar
+            src={
+              normalizedImg
+                ? `${import.meta.env.VITE_ASSET_BASE_URL}/${normalizedImg}`
+                : undefined
+            }
+            alt="avatar"
+            style={{ backgroundColor: "#ccc" }}
+          />
+        );
+      },
     },
     {
       title: "Tên người dùng",
@@ -212,6 +250,15 @@ const UserManagement = () => {
         <Button type="primary" onClick={getUsers}>
           Làm mới
         </Button>
+
+        <Button
+          type="primary"
+          icon={<UserAddOutlined />}
+          onClick={() => setAddModalVisible(true)}
+          style={{ backgroundColor: "#16C098", borderColor: "#16C098" }}
+        >
+          Thêm người dùng
+        </Button>
       </div>
 
       <Table
@@ -219,6 +266,40 @@ const UserManagement = () => {
         columns={columns}
         pagination={{ pageSize: 6 }}
         scroll={{ x: "max-content" }}
+      />
+
+      <AddUserModal
+        visible={addModalVisible}
+        onCancel={() => setAddModalVisible(false)}
+        user={newUser}
+        setUser={setNewUser}
+        onSubmit={async () => {
+          try {
+            await createAdminUser(newUser);
+            Modal.success({
+              title: "Thành công",
+              content: "Đã thêm người dùng mới!",
+            });
+            setAddModalVisible(false);
+            setNewUser({
+              username: "",
+              email: "",
+              password: "",
+              phone: "",
+              address: "",
+              status: "active",
+              role: 1,
+              avatar: null,
+            });
+            await getUsers();
+          } catch (err) {
+            console.error("Lỗi khi thêm user:", err);
+            Modal.error({
+              title: "Thất bại",
+              content: "Không thể thêm người dùng.",
+            });
+          }
+        }}
       />
 
       <EditUserModal

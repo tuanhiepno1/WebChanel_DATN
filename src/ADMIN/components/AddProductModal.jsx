@@ -85,11 +85,18 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
       onCancel={onCancel}
       onOk={handleOk}
       title="Thêm sản phẩm"
-      okText="Lưu"
+      okText="Thêm"
       cancelText="Hủy"
       destroyOnHidden
       width={1000}
       styles={{ maxHeight: "70vh", overflowY: "auto" }}
+      okButtonProps={{
+        style: {
+          backgroundColor: "#DBB671",
+          borderColor: "#DBB671",
+          color: "#000",
+        },
+      }}
     >
       <Form layout="vertical" form={form} initialValues={{ status: "active" }}>
         <Row gutter={[16, 8]}>

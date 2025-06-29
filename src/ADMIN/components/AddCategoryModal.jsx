@@ -21,9 +21,9 @@ const AddCategoryModal = ({
       cancelText="Hủy"
       okButtonProps={{
         style: {
-          backgroundColor: "#16C098",
-          borderColor: "#16C098",
-          color: "#fff",
+          backgroundColor: "#DBB671",
+          borderColor: "#DBB671",
+          color: "#000",
         },
       }}
     >
