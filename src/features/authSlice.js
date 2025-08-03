@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { loginUser, registerUser } from "@api/userApi";
-import { clearCart, loadCartFromUser } from "@redux/cartSlice";
+import { clearCart, fetchCart } from "@redux/cartSlice";
 
 // Đăng ký
 export const register = createAsyncThunk(
@@ -33,14 +33,12 @@ export const login = createAsyncThunk(
   }
 );
 
-// Đăng nhập + Load cart
+// Đăng nhập + load cart
 export const loginAndLoadCart = (credentials) => async (dispatch) => {
   const result = await dispatch(login(credentials));
   if (login.fulfilled.match(result)) {
     const userId = result.payload.user.id;
-    const cartData =
-      JSON.parse(localStorage.getItem(`cart_user_${userId}`)) || [];
-    dispatch(loadCartFromUser(cartData));
+    await dispatch(fetchCart(userId));
   }
   return result;
 };
@@ -51,11 +49,32 @@ export const logoutAndClearCart = () => (dispatch) => {
   dispatch(clearCart());
 };
 
+// Lấy user từ localStorage (chạy khi app khởi động)
+export const restoreUserFromLocalStorage = () => (dispatch) => {
+  try {
+    const userData = JSON.parse(localStorage.getItem("user"));
+    const token = localStorage.getItem("token");
+
+    if (userData && token) {
+      const id = userData.id || userData.id_user;
+      const user = { ...userData, id };
+
+      dispatch(restoreUser({ user, token }));
+      dispatch(fetchCart(id));
+    }
+  } catch (err) {
+    console.error("⚠️ Lỗi khi restore user:", err);
+  }
+};
+
+const userFromStorage = localStorage.getItem("user");
+const tokenFromStorage = localStorage.getItem("token");
+
 const authSlice = createSlice({
   name: "auth",
   initialState: {
-    user: JSON.parse(localStorage.getItem("user")) || null,
-    token: localStorage.getItem("token") || null,
+    user: userFromStorage ? JSON.parse(userFromStorage) : null,
+     token: tokenFromStorage || null,
     loading: false,
     error: null,
   },
@@ -73,7 +92,6 @@ const authSlice = createSlice({
         ...action.payload,
       };
 
-      // Xử lý ảnh nếu là đường dẫn tương đối
       if (updatedUser.image && !updatedUser.image.startsWith("http")) {
         updatedUser.image = `${import.meta.env.VITE_ASSET_BASE_URL}${
           updatedUser.image
@@ -82,6 +100,14 @@ const authSlice = createSlice({
 
       state.user = updatedUser;
       localStorage.setItem("user", JSON.stringify(updatedUser));
+    },
+    restoreUser: (state, action) => {
+      const user = {
+        ...action.payload.user,
+        id: action.payload.user.id_user, // ✅ Thêm dòng này
+      };
+      state.user = user;
+      state.token = action.payload.token;
     },
   },
   extraReducers: (builder) => {
@@ -97,7 +123,6 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
       .addCase(login.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -105,7 +130,11 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
         state.token = action.payload.token;
-        state.user = action.payload.user;
+        const user = {
+          ...action.payload.user,
+          id: action.payload.user.id_user, // ✅ Thêm dòng này
+        };
+        state.user = user;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -114,5 +143,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, updateUserInfo } = authSlice.actions;
+export const { logout, updateUserInfo, restoreUser } = authSlice.actions;
 export default authSlice.reducer;

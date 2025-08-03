@@ -10,6 +10,7 @@ import {
   Space,
   Modal,
   Form,
+  message,
 } from "antd";
 import {
   DeleteOutlined,
@@ -17,12 +18,14 @@ import {
   ArrowRightOutlined,
 } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
-import { removeFromCart, updateQuantity } from "@redux/cartSlice";
+import { removeFromCart, updateQuantity, fetchCart } from "@redux/cartSlice";
 import Header from "@components/Header";
 import Footer from "@components/Footer";
 import DeliveryInfoForm from "@components/DeliveryInfoForm";
 import CheckoutModal from "@components/CheckoutModal";
 import { useNavigate } from "react-router-dom";
+import ModalVoucher from "@components/ModalVoucher";
+import { fetchVouchers, checkoutAPI } from "@api/cartApi";
 
 const CartPage = () => {
   const dispatch = useDispatch();
@@ -32,25 +35,50 @@ const CartPage = () => {
   const [form] = Form.useForm();
 
   const [paymentMethod, setPaymentMethod] = useState("vnpay");
-  const [selectedIds, setSelectedIds] = useState(
-    cartItems.map((item) => item.id)
-  );
-
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [openDeliveryModal, setOpenDeliveryModal] = useState(false);
+  const [checkoutVisible, setCheckoutVisible] = useState(false);
+  const [vouchers, setVouchers] = useState([]);
+  const [voucherModalVisible, setVoucherModalVisible] = useState(false);
   const [deliveryInfo, setDeliveryInfo] = useState({
     name: user?.username || "",
     phone: user?.phone || "",
     address: user?.address || "",
   });
-
-  const [openDeliveryModal, setOpenDeliveryModal] = useState(false);
   const [tempDeliveryInfo, setTempDeliveryInfo] = useState(deliveryInfo);
-  const [checkoutVisible, setCheckoutVisible] = useState(false);
+  const [selectedVoucherIds, setSelectedVoucherIds] = useState([]);
 
   useEffect(() => {
-    if (openDeliveryModal) {
-      setTempDeliveryInfo(deliveryInfo); // Sync lại khi mở modal
+    if (user?.id) {
+      dispatch(fetchCart(user.id));
     }
-  }, [openDeliveryModal]);
+  }, [user?.id, dispatch]);
+
+  useEffect(() => {
+    setSelectedIds(cartItems.map((item) => item.id));
+  }, [cartItems]);
+
+  useEffect(() => {
+    if (openDeliveryModal) setTempDeliveryInfo(deliveryInfo);
+  }, [openDeliveryModal, deliveryInfo]);
+
+  useEffect(() => {
+    const loadVouchers = async () => {
+      const data = await fetchVouchers();
+      const mapped = data.map((v) => ({
+        id_voucher: v.id_voucher,
+        code: v.code,
+        type: v.type,
+        discount_amount: v.discount_amount,
+        max_discount_amount: v.max_discount_amount || 0,
+        min_order_amount: v.min_order_amount || 0,
+        payment_required: v.payment_required || null,
+        note: v.note || "",
+      }));
+      setVouchers(mapped);
+    };
+    loadVouchers();
+  }, []);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) =>
@@ -60,13 +88,12 @@ const CartPage = () => {
 
   const handleQuantityChange = (id, quantity) => {
     if (quantity >= 1) {
-      dispatch(updateQuantity({ id, quantity }));
+      dispatch(updateQuantity({ userId: user.id, id, quantity }));
     }
   };
 
   const handleRemove = (id) => {
-    dispatch(removeFromCart(id));
-    setSelectedIds((prev) => prev.filter((itemId) => itemId !== id));
+    dispatch(removeFromCart({ userId: user.id, id }));
   };
 
   const totalPrice = cartItems.reduce((sum, item) => {
@@ -75,13 +102,29 @@ const CartPage = () => {
     }
     return sum;
   }, 0);
-  const shippingFee = paymentMethod === "cod" ? 30000 : 0;
-  const finalTotal = totalPrice + shippingFee;
 
-  const handleSaveDeliveryInfo = () => {
-    setDeliveryInfo(tempDeliveryInfo);
-    setOpenDeliveryModal(false);
-  };
+  const shippingFee = paymentMethod === "cod" ? 30000 : 0;
+
+  const totalVoucherDiscount = vouchers.reduce((sum, v) => {
+    if (selectedVoucherIds.includes(v.id_voucher)) {
+      const validPrice =
+        !v.min_order_amount || totalPrice >= v.min_order_amount;
+      const validPayment =
+        !v.payment_required || paymentMethod === v.payment_required;
+      if (!validPrice || !validPayment) return sum;
+      if (v.type === "fixed") return sum + (v.discount_amount || 0);
+      if (v.type === "percentage") {
+        const percentDiscount = (v.discount_amount / 100) * totalPrice;
+        return (
+          sum +
+          Math.min(percentDiscount, v.max_discount_amount || percentDiscount)
+        );
+      }
+    }
+    return sum;
+  }, 0);
+
+  const finalTotal = totalPrice + shippingFee - totalVoucherDiscount;
 
   return (
     <>
@@ -106,7 +149,6 @@ const CartPage = () => {
                     padding: "16px 0",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    position: "relative",
                   }}
                 >
                   <div
@@ -117,7 +159,6 @@ const CartPage = () => {
                       onChange={() => toggleSelect(item.id)}
                       style={{ marginRight: 12, transform: "scale(1.2)" }}
                     />
-
                     <img
                       src={item.image}
                       alt={item.name}
@@ -133,11 +174,6 @@ const CartPage = () => {
                       <p style={{ fontWeight: 600, marginBottom: 4 }}>
                         {item.name}
                       </p>
-                      {item.type && (
-                        <p style={{ marginBottom: 4, color: "#888" }}>
-                          Loại: {item.type}
-                        </p>
-                      )}
                       <Space>
                         <Button
                           size="small"
@@ -159,7 +195,6 @@ const CartPage = () => {
                       </Space>
                     </div>
                   </div>
-
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 16 }}
                   >
@@ -173,15 +208,11 @@ const CartPage = () => {
                     >
                       {(Number(item.price) * item.quantity).toLocaleString()} ₫
                     </div>
-
                     <Button
                       type="text"
                       icon={<DeleteOutlined />}
                       onClick={() => handleRemove(item.id)}
-                      style={{
-                        color: "rgba(0,0,0,0.45)",
-                        transition: "0.3s",
-                      }}
+                      style={{ color: "rgba(0,0,0,0.45)", transition: "0.3s" }}
                       onMouseOver={(e) => (e.currentTarget.style.color = "red")}
                       onMouseOut={(e) =>
                         (e.currentTarget.style.color = "rgba(0,0,0,0.45)")
@@ -191,34 +222,32 @@ const CartPage = () => {
                 </div>
               ))
             )}
-
             <div style={{ marginTop: 24 }}>
               <Button
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigate(-1)}
                 style={{
-                  marginBottom: 16,
-                  backgroundColor: "#DBB671",
+                  background: "#DBB671",
                   borderColor: "#DBB671",
                   color: "#000",
                 }}
+                onClick={() => navigate(-1)}
               >
                 Quay lại
               </Button>
-
               <Button
                 icon={<ArrowRightOutlined />}
+                onClick={() =>
+                  navigate(
+                    `/category/${
+                      localStorage.getItem("lastCategorySlug") || "all"
+                    }`
+                  )
+                }
                 style={{
-                  marginBottom: 16,
-                  backgroundColor: "#DBB671",
+                  background: "#DBB671",
                   borderColor: "#DBB671",
                   color: "#000",
                   marginLeft: 16,
-                }}
-                onClick={() => {
-                  const lastSlug =
-                    localStorage.getItem("lastCategorySlug") || "all";
-                  navigate(`/category/${lastSlug}`);
                 }}
               >
                 Tiếp tục mua sắm
@@ -233,83 +262,84 @@ const CartPage = () => {
                 borderRadius: 6,
                 padding: 16,
                 background: "#fafafa",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "100%",
               }}
             >
-              <div>
-                <h3>THÔNG TIN NGƯỜI NHẬN HÀNG:</h3>
-                <p style={{ marginBottom: 4 }}>
-                  {deliveryInfo.name} | {deliveryInfo.phone}
-                </p>
-                <p style={{ marginBottom: 8 }}>
-                  Địa chỉ: {deliveryInfo.address}
-                </p>
-              </div>
-
+              <h3>THÔNG TIN NGƯỜI NHẬN HÀNG:</h3>
+              <p>
+                {deliveryInfo.name} | {deliveryInfo.phone}
+              </p>
+              <p>Địa chỉ: {deliveryInfo.address}</p>
               <Button
                 size="small"
-                onClick={() => setOpenDeliveryModal(true)}
                 style={{
-                  backgroundColor: "#FFE0A7",
-                  borderColor: "#FFE0A7",
+                  background: "#DBB671",
+                  borderColor: "#DBB671",
                   color: "#000",
-                  alignSelf: "flex-end",
-                  fontWeight: 600,
                 }}
+                onClick={() => setOpenDeliveryModal(true)}
               >
                 THAY ĐỔI
               </Button>
 
               <Divider />
 
-              <Input
-                placeholder="Nhập mã giảm giá tại đây"
-                style={{ marginBottom: 12 }}
-              />
-
               <Radio.Group
                 onChange={(e) => setPaymentMethod(e.target.value)}
                 value={paymentMethod}
-                style={{ marginBottom: 12 }}
+                style={{
+                  marginBottom: 12,
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
               >
-                <Radio value="cod">Thanh toán COD</Radio>
-                <Radio value="vnpay" style={{ marginLeft: 20 }}>
+                <Radio value="cod" style={{ flex: 1, textAlign: "center" }}>
+                  Thanh toán COD
+                </Radio>
+                <Radio value="vnpay" style={{ flex: 1, textAlign: "center" }}>
                   Thanh toán VNPay
                 </Radio>
               </Radio.Group>
 
-              <div
+              <Button
+                type="dashed"
+                block
+                onClick={() => setVoucherModalVisible(true)}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: 8,
+                  background: "#DBB671",
+                  borderColor: "#DBB671",
+                  color: "#000",
+                  marginBottom: 16,
                 }}
               >
+                Chọn voucher
+              </Button>
+
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Tạm tính:</span>
                 <span>{totalPrice.toLocaleString()} ₫</span>
               </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: 8,
-                }}
-              >
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Phí vận chuyển:</span>
                 <span>{shippingFee.toLocaleString()} ₫</span>
               </div>
-
+              {totalVoucherDiscount > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    color: "green",
+                  }}
+                >
+                  <span>Giảm giá voucher:</span>
+                  <span>-{totalVoucherDiscount.toLocaleString()} ₫</span>
+                </div>
+              )}
+              <Divider />
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   fontWeight: 600,
-                  fontSize: 16,
-                  marginBottom: 16,
                 }}
               >
                 <span>Tổng cộng:</span>
@@ -320,11 +350,10 @@ const CartPage = () => {
                 block
                 onClick={() => setCheckoutVisible(true)}
                 style={{
-                  backgroundColor: "#DBB671",
+                  background: "#DBB671",
                   borderColor: "#DBB671",
                   color: "#000",
-                  fontWeight: 600,
-                  height: 48,
+                  marginTop: 16,
                 }}
               >
                 THANH TOÁN
@@ -334,30 +363,15 @@ const CartPage = () => {
         </Row>
       </div>
 
-      {/* ✅ Modal chỉnh sửa thông tin */}
       <Modal
         title="Chỉnh sửa thông tin nhận hàng"
         open={openDeliveryModal}
         onCancel={() => setOpenDeliveryModal(false)}
         onOk={() => {
-          form
-            .validateFields()
-            .then(() => {
-              handleSaveDeliveryInfo(); // Cập nhật deliveryInfo
-            })
-            .catch((err) => {
-              console.log("Validation Error:", err);
-            });
-        }}
-        okText="Lưu"
-        cancelText="Hủy"
-        okButtonProps={{
-          style: {
-            backgroundColor: "#DBB671",
-            borderColor: "#DBB671",
-            color: "#000",
-            fontWeight: 600,
-          },
+          form.validateFields().then(() => {
+            setDeliveryInfo(tempDeliveryInfo);
+            setOpenDeliveryModal(false);
+          });
         }}
       >
         <DeliveryInfoForm
@@ -367,16 +381,39 @@ const CartPage = () => {
         />
       </Modal>
 
+      <ModalVoucher
+        visible={voucherModalVisible}
+        onClose={() => setVoucherModalVisible(false)}
+        vouchers={vouchers}
+        totalPrice={totalPrice}
+        paymentMethod={paymentMethod}
+        shippingFee={shippingFee}
+        selectedVoucherIds={selectedVoucherIds}
+        onChangeSelectedVouchers={setSelectedVoucherIds}
+      />
+
       <CheckoutModal
         visible={checkoutVisible}
         onCancel={() => setCheckoutVisible(false)}
-        onConfirm={() => {
-          setCheckoutVisible(false);
-          message.success("Đặt hàng thành công!");
-          // Gọi API nếu cần ở đây
+        onConfirm={async () => {
+          try {
+            await checkoutAPI(user.id, {
+              customer_name: deliveryInfo.name,
+              phone: deliveryInfo.phone,
+              address: deliveryInfo.address,
+              payment_method: paymentMethod,
+            });
+
+            setCheckoutVisible(false);
+            message.success("Đặt hàng thành công!");
+            dispatch(fetchCart(user.id)); // cập nhật lại giỏ hàng
+          } catch (error) {
+            console.error("Checkout failed", error);
+            message.error("Đặt hàng thất bại. Vui lòng thử lại.");
+          }
         }}
         deliveryInfo={deliveryInfo}
-        cartItems={cartItems}
+        cartItems={cartItems.filter((item) => selectedIds.includes(item.id))}
         selectedIds={selectedIds}
         paymentMethod={paymentMethod}
         total={finalTotal}

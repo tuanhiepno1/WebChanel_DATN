@@ -7,6 +7,7 @@ import {
   ShoppingOutlined,
   UserOutlined,
   LogoutOutlined,
+  GiftOutlined,
 } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutAndClearCart } from "@features/authSlice";
@@ -44,6 +45,11 @@ const AdminLayout = () => {
       key: "/admin/user",
       icon: <UserOutlined />,
       label: <Link to="/admin/user">Người dùng</Link>,
+    },
+    {
+      key: "/admin/voucher",
+      icon: <GiftOutlined />,
+      label: <Link to="/admin/voucher">Voucher</Link>,
     },
     {
       key: "logout",

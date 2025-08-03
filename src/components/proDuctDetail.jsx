@@ -8,43 +8,38 @@ import {
 import Header from "@components/header";
 import Footer from "@components/footer";
 import DiscountProducts from "@components/discountProduct";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "@redux/cartSlice";
 import { useNavigate } from "react-router-dom";
 
 const ProductDetailLayout = ({ product, extraInfo = [] }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const user = useSelector((state) => state.auth.user);
+  console.log("👤 user từ Redux sau F5:", user); // 🔑 lấy userId
 
   if (!product) return <p style={{ padding: 20 }}>Sản phẩm không tồn tại.</p>;
 
   const handleAddToCart = () => {
-    const {
-      id,
-      name,
-      image,
-      price,
-      rating,
-      category_slug,
-      type,
-      volume,
-      slug,
-    } = product;
+    if (!user?.id) {
+      alert("Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng.");
+      return;
+    }
 
     dispatch(
       addToCart({
-        id,
-        name,
-        image,
-        price,
-        rating,
-        category_slug,
-        type,
-        volume,
-        slug,
+        userId: user.id,
+        product,
       })
-    );
-    navigate("/gio-hang");
+    )
+      .unwrap()
+      .then(() => {
+        navigate("/gio-hang");
+      })
+      .catch((err) => {
+        console.error("❌ Lỗi thêm vào giỏ hàng:", err);
+      });
+      console.log("🧪 user từ Redux:", user);
   };
 
   return (
@@ -184,6 +179,42 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
         </div>
 
         <Divider />
+
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <h2>Đánh giá sản phẩm</h2>
+          {[
+            /* danh sách đánh giá mẫu như trước */
+          ].map((review, index) => (
+            <div
+              key={index}
+              style={{
+                display: "flex",
+                gap: 16,
+                padding: "16px 0",
+                borderBottom: "1px solid #eee",
+                alignItems: "flex-start",
+              }}
+            >
+              <img
+                src={review.avatar}
+                alt={review.name}
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+              />
+              <div>
+                <p style={{ marginBottom: 4, fontWeight: 500 }}>
+                  {review.name}
+                </p>
+                <Rate disabled defaultValue={review.rating} />
+                <p style={{ marginTop: 8 }}>{review.comment}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div
           style={{

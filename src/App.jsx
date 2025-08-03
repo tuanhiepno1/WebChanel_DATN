@@ -1,5 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { restoreUserFromLocalStorage } from "@features/authSlice";
+import { fetchCart } from "@redux/cartSlice";
 import Home from "@pages/Home";
 import Login from "@pages/Login";
 import Register from "@pages/Register";
@@ -13,8 +16,27 @@ import CartPage from "@pages/Cart/CartPage";
 import endPoints from "@routes/router";
 import RequireAdminAuth from "@admin/routes/RequireAdminAuth";
 import AdminRoutes from "@admin/routes/AdminRoutes";
+import MainLayout from "@pages/MainLayout";
 
 const App = () => {
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
+
+  // Chạy 1 lần khi App khởi động để restore user và cart
+  useEffect(() => {
+    dispatch(restoreUserFromLocalStorage());
+  }, [dispatch]);
+
+  useEffect(() => {
+    console.log("🧪 USER SAU RESTORE:", user);
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.id) {
+      dispatch(fetchCart(user.id));
+    }
+  }, [dispatch, user]);
+
   return (
     <Router>
       <Routes>
@@ -26,29 +48,86 @@ const App = () => {
             </RequireAdminAuth>
           }
         />
-
-        <Route path={endPoints.ALL} element={<Home />} />
-        <Route path={endPoints.LOGIN} element={<Login />} />
-        <Route path={endPoints.REGISTER} element={<Register />} />
-        <Route path={endPoints.PROFILE} element={<UserProfile />} />
+        <Route
+          path={endPoints.ALL}
+          element={
+            <MainLayout>
+              <Home />
+            </MainLayout>
+          }
+        />
+        <Route
+          path={endPoints.LOGIN}
+          element={
+            <MainLayout>
+              <Login />
+            </MainLayout>
+          }
+        />
+        <Route
+          path={endPoints.REGISTER}
+          element={
+            <MainLayout>
+              <Register />
+            </MainLayout>
+          }
+        />
+        <Route
+          path={endPoints.PROFILE}
+          element={
+            <MainLayout>
+              <UserProfile />
+            </MainLayout>
+          }
+        />
         <Route
           path={endPoints.FORGOT_PASSWORD_EMAIL}
-          element={<ForgotPasswordPage />}
+          element={
+            <MainLayout>
+              <ForgotPasswordPage />
+            </MainLayout>
+          }
         />
         <Route
           path={endPoints.FORGOT_PASSWORD_CODE}
-          element={<VerifyCodePage />}
+          element={
+            <MainLayout>
+              <VerifyCodePage />
+            </MainLayout>
+          }
         />
         <Route
           path={endPoints.FORGOT_PASSWORD_RESET}
-          element={<ResetPasswordPage />}
+          element={
+            <MainLayout>
+              <ResetPasswordPage />
+            </MainLayout>
+          }
         />
-        <Route path={endPoints.CATEGORY} element={<CategoryPage />} />
+        <Route
+          path={endPoints.CATEGORY}
+          element={
+            <MainLayout>
+              <CategoryPage />
+            </MainLayout>
+          }
+        />
         <Route
           path={endPoints.PRODUCT_DETAIL}
-          element={<ProductDetailPage />}
+          element={
+            <MainLayout>
+              <ProductDetailPage />
+            </MainLayout>
+          }
         />
-        <Route path={endPoints.GIOHANG} element={<CartPage />} />
+        <Route
+          path={endPoints.GIOHANG}
+          element={
+            <MainLayout>
+              <CartPage />
+            </MainLayout>
+          }
+        />
       </Routes>
     </Router>
   );

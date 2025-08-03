@@ -5,6 +5,7 @@ import AdminLayout from '@adminPages/AdminLayout'; // layout tổng cho admin
 import CategoryManagement from '@adminPages/CategoryManagement'; // trang quản lý danh mục
 import ProductManagement from '@adminPages/ProductManagement';
 import UserManagement from '@adminPages/UserManagement';
+import VoucherManagement from '@adminPages/VoucherManagement';
 import Dashboard from '@adminPages/Dashboard'; // nếu có
 
 
@@ -16,6 +17,7 @@ const AdminRoutes = () => {
         <Route path="category" element={<CategoryManagement />} />
         <Route path="product" element={<ProductManagement />} />
         <Route path="user" element={<UserManagement />} />
+        <Route path="voucher" element={<VoucherManagement />} />
       </Route>
     </Routes>
   );

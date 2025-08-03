@@ -6,37 +6,44 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { fetchFeaturedProducts } from "@api/productApi";
 
+// Custom Arrow Base Style
+const arrowBaseStyle = {
+  background: "black",
+  color: "white",
+  borderRadius: "50%",
+  width: 40,
+  height: 40,
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  fontSize: 20,
+  zIndex: 2,
+  cursor: "pointer",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+  position: "absolute",
+  top: "45%",
+};
+
 // Arrow Components
 const PrevArrow = ({ onClick }) => (
   <div
     onClick={onClick}
-    style={{
-      left: -25,
-      zIndex: 2,
-      top: "40%",
-      position: "absolute",
-      cursor: "pointer",
-    }}
+    style={{ ...arrowBaseStyle, left: 10 }}
   >
-    <LeftOutlined style={{ fontSize: 24 }} />
+    <LeftOutlined />
   </div>
 );
 
 const NextArrow = ({ onClick }) => (
   <div
     onClick={onClick}
-    style={{
-      right: -25,
-      zIndex: 2,
-      top: "40%",
-      position: "absolute",
-      cursor: "pointer",
-    }}
+    style={{ ...arrowBaseStyle, right: 10 }}
   >
-    <RightOutlined style={{ fontSize: 24 }} />
+    <RightOutlined />
   </div>
 );
 
+// Product Card Component
 const ProductCard = ({ product }) => (
   <Card
     hoverable
@@ -44,10 +51,10 @@ const ProductCard = ({ product }) => (
       width: "97%",
       borderRadius: 10,
       position: "relative",
-      margin: "12px 12px",
+      margin: "12px auto",
       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
       transition: "transform 0.3s, box-shadow 0.3s",
-      textAlign: "center", 
+      textAlign: "center",
     }}
     styles={{
       body: {
@@ -55,7 +62,7 @@ const ProductCard = ({ product }) => (
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        alignItems: "center", 
+        alignItems: "center",
       },
     }}
     cover={
@@ -135,6 +142,7 @@ const ProductCard = ({ product }) => (
   </Card>
 );
 
+// Main Discount Product Slider
 const DiscountProducts = () => {
   const [products, setProducts] = useState([]);
 
@@ -165,14 +173,15 @@ const DiscountProducts = () => {
   return (
     <div style={{ padding: "40px 0", position: "relative" }}>
       <h2 style={{ textAlign: "center", marginBottom: 12 }}>SẢN PHẨM HOT</h2>
-      <Slider {...settings}>
-        {products.map((product, index) => (
-          <ProductCard
-            key={product.id || `product-${index}`}
-            product={product}
-          />
-        ))}
-      </Slider>
+      <div style={{ padding: "0 20px", position: "relative" }}>
+        <Slider {...settings}>
+          {products.map((product, index) => (
+            <div key={product.id || `product-${index}`}>
+              <ProductCard product={product} />
+            </div>
+          ))}
+        </Slider>
+      </div>
     </div>
   );
 };

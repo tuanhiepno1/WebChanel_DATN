@@ -154,53 +154,65 @@ const UserManagement = () => {
       title: "Hành động",
       key: "actions",
       fixed: "right",
-      width: 150,
+      width: 180,
       align: "center",
       render: (_, record) => (
-        <Space>
-          <Button
-            icon={<ShoppingOutlined />}
-            style={{
-              backgroundColor: "#4096ff",
-              borderColor: "#4096ff",
-              color: "#fff",
-            }}
-            size="small"
-            onClick={() => {
-              setSelectedUser(record);
-              setOrderModalVisible(true);
-            }}
-          >
-            Đơn hàng
-          </Button>
-          <Button
-            icon={<EditOutlined />}
-            size="small"
-            style={{
-              backgroundColor: "#DBB671",
-              borderColor: "#DBB671",
-              color: "#000",
-            }}
-            onClick={() => {
-              setEditingUser(record);
-              setEditModalVisible(true);
-            }}
-          >
-            Sửa
-          </Button>
+        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+          {record.role !== 1 && (
+            <Button
+              icon={<ShoppingOutlined />}
+              size="small"
+              style={{
+                backgroundColor: "#4096ff",
+                borderColor: "#4096ff",
+                color: "#fff",
+                width: 95,
+                padding: 0,
+              }}
+              onClick={() => {
+                setSelectedUser(record);
+                setOrderModalVisible(true);
+              }}
+            >
+              Đơn hàng
+            </Button>
+          )}
+
+          {record.role !== 0 && (
+            <Button
+              icon={<EditOutlined />}
+              size="small"
+              style={{
+                backgroundColor: "#DBB671",
+                borderColor: "#DBB671",
+                color: "#000",
+                width: 95,
+                padding: 0,
+              }}
+              onClick={() => {
+                setEditingUser(record);
+                setEditModalVisible(true);
+              }}
+            >
+              Sửa
+            </Button>
+          )}
+
           <Button
             icon={<DeleteOutlined />}
+            size="small"
             style={{
               backgroundColor: "#DF0404",
               borderColor: "#DF0404",
               color: "#fff",
+              width: 95,
+              padding: 0,
             }}
-            size="small"
             onClick={() => handleDelete(record.id_user)}
           >
-            Xoá
+            Ẩn
           </Button>
-        </Space>
+        </div>
       ),
     },
   ];

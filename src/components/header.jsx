@@ -31,16 +31,8 @@ const HeaderComponent = () => {
         }));
 
         const fixedItems = [
-          {
-            key: "news",
-            label: "TIN TỨC",
-            path: "/tin-tuc",
-          },
-          {
-            key: "contact",
-            label: "LIÊN HỆ",
-            path: "/lien-he",
-          },
+          { key: "news", label: "TIN TỨC", path: "/tin-tuc" },
+          { key: "contact", label: "LIÊN HỆ", path: "/lien-he" },
         ];
 
         setMenuItems([...categoryMenu, ...fixedItems]);
@@ -51,7 +43,6 @@ const HeaderComponent = () => {
     loadCategories();
   }, []);
 
-  // Update selected menu key based on current URL
   useEffect(() => {
     const matched = menuItems.find((item) =>
       location.pathname.startsWith(item.path)
@@ -66,14 +57,19 @@ const HeaderComponent = () => {
   };
 
   const userMenuItems = isLoggedIn
-  ? [
-      ...(user?.role === 1
-        ? [{ key: "admin", label: <Link to="/admin/dashboard">Quản trị</Link> }]
-        : []),
-      { key: "profile", label: <Link to="/profile">Thông tin cá nhân</Link> },
-      { key: "logout", label: "Đăng xuất", onClick: handleLogout },
-    ]
-  : [{ key: "login", label: <Link to="/login">Đăng nhập</Link> }];
+    ? [
+        ...(user?.role === 1
+          ? [
+              {
+                key: "admin",
+                label: <Link to="/admin/dashboard" target="_blank">Quản trị</Link>,
+              },
+            ]
+          : []),
+        { key: "profile", label: <Link to="/profile">Thông tin cá nhân</Link> },
+        { key: "logout", label: "Đăng xuất", onClick: handleLogout },
+      ]
+    : [{ key: "login", label: <Link to="/login">Đăng nhập</Link> }];
 
   const handleMenuClick = ({ key }) => {
     const selectedItem = menuItems.find((item) => item.key === key);
@@ -93,7 +89,8 @@ const HeaderComponent = () => {
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 20px",
-          gap: "20px",
+          gap: "16px",
+          flexWrap: "nowrap",
         }}
       >
         {/* Logo */}
@@ -104,7 +101,7 @@ const HeaderComponent = () => {
         </div>
 
         {/* Menu */}
-        <div style={{ flex: "1 1 0%" }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
           <Menu
             theme="light"
             mode="horizontal"
@@ -114,7 +111,12 @@ const HeaderComponent = () => {
               fontSize: "16px",
               fontWeight: "bold",
               borderBottom: "none",
+              display: "flex",
               justifyContent: "center",
+              flexWrap: "nowrap",
+              whiteSpace: "nowrap",
+              overflowX: "auto",
+              scrollbarWidth: "none",
             }}
             items={menuItems}
           />
@@ -126,10 +128,15 @@ const HeaderComponent = () => {
             display: "flex",
             alignItems: "center",
             gap: "12px",
-            minWidth: "240px",
+            flexShrink: 0,
+            maxWidth: "300px",
           }}
         >
-          <Search placeholder="Tìm là thấy" style={{ width: 160 }} allowClear />
+          <Search
+            placeholder="Tìm là thấy"
+            style={{ width: 160 }}
+            allowClear
+          />
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <div
               style={{
@@ -137,7 +144,7 @@ const HeaderComponent = () => {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                maxWidth: 140,
+                maxWidth: 120,
                 overflow: "hidden",
               }}
             >
@@ -149,7 +156,7 @@ const HeaderComponent = () => {
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    maxWidth: 100,
+                    maxWidth: 80,
                     display: "inline-block",
                   }}
                 >

@@ -21,37 +21,34 @@ const CategoryPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  localStorage.setItem("lastCategorySlug", slug);
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await fetchProductsByCategorySlug(slug);
-      const safeProducts = Array.isArray(res?.products)
-        ? res.products.map((p) => ({ ...p, category_slug: slug }))
-        : [];
+    localStorage.setItem("lastCategorySlug", slug);
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const res = await fetchProductsByCategorySlug(slug);
+        const safeProducts = Array.isArray(res?.products) ? res.products : [];
 
-      const rawCategory = res?.category || {};
-      const activeSubcategories = rawCategory.subcategories?.filter(
-        (sub) => sub.status === "active"
-      ) || [];
+        const rawCategory = res?.category || {};
+        const activeSubcategories =
+          rawCategory.subcategories?.filter((sub) => sub.status === "active") ||
+          [];
 
-      const safeCategory = {
-        ...rawCategory,
-        subcategories: activeSubcategories,
-      };
+        const safeCategory = {
+          ...rawCategory,
+          subcategories: activeSubcategories,
+        };
 
-      setProducts(safeProducts);
-      setCategory(safeCategory);
-    } catch (err) {
-      console.error("Lỗi khi load danh mục:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+        setProducts(safeProducts);
+        setCategory(safeCategory);
+      } catch (err) {
+        console.error("Lỗi khi load danh mục:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  loadData();
-}, [slug]);
-
+    loadData();
+  }, [slug]);
 
   const handleFilterBySubcategory = async (id_subcategory) => {
     setLoading(true);
@@ -72,8 +69,9 @@ const CategoryPage = () => {
   return (
     <Layout>
       <HeaderComponent />
-      <Content style={{ padding: "0 24px", minHeight: "100vh", margin: "20px 0" }}>
-
+      <Content
+        style={{ padding: "0 24px", minHeight: "100vh", margin: "20px 0" }}
+      >
         <Row gutter={[20, 20]} wrap>
           {/* Sidebar trái */}
           <Col

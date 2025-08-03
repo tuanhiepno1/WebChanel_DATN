@@ -15,8 +15,8 @@ const FooterComponent = () => {
         style={{
           backgroundColor: "	#1a1a1a",
           color: "white",
-          padding: "20px 24px",
-          margin: "0 24px",
+          padding: "20px 0",
+          margin: "0 auto",
         }}
       >
         <div
