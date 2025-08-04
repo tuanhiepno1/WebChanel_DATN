@@ -16,7 +16,7 @@ export default defineConfig({
       "@data": path.resolve(__dirname, "./src/data"),
       "@api": path.resolve(__dirname, "./src/api"),
       "@features": path.resolve(__dirname, "./src/features"),
-
+      "@utils": path.resolve(__dirname, "./src/utils"),
 
       "@admin": path.resolve(__dirname, "./src/ADMIN"),
       "@adminPages": path.resolve(__dirname, "./src/ADMIN/pages"),

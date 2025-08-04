@@ -47,6 +47,11 @@ const AdminLayout = () => {
       label: <Link to="/admin/user">Người dùng</Link>,
     },
     {
+      key: "/admin/order",
+      icon: <ShoppingOutlined />,
+      label: <Link to="/admin/order">Đơn hàng</Link>,
+    },
+    {
       key: "/admin/voucher",
       icon: <GiftOutlined />,
       label: <Link to="/admin/voucher">Voucher</Link>,

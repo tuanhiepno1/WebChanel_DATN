@@ -30,3 +30,19 @@ export const fetchVouchers = async () => {
     return [];
   }
 };
+
+export const applyVoucherAPI = (userId, voucherCode) => {
+  return axiosClient.post(`/applyvoucher/${userId}`, {
+    voucher_code: voucherCode,
+  });
+};
+
+export const getOrderById = async (orderId) => {
+  try {
+    const response = await axiosClient.get(`/orders/${orderId}`);
+    return response.data?.order;
+  } catch (error) {
+    const msg = error.response?.data?.message || "Không thể lấy chi tiết đơn hàng";
+    throw new Error(msg);
+  }
+};

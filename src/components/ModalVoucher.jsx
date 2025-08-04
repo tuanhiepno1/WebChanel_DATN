@@ -1,5 +1,7 @@
+// @components/ModalVoucher.js
 import React, { useState, useEffect } from "react";
-import { Modal, Checkbox, Typography, message } from "antd";
+import { Modal, Typography, Radio, message } from "antd";
+import { applyVoucherAPI } from "@api/cartApi";
 
 const ModalVoucher = ({
   visible,
@@ -8,35 +10,20 @@ const ModalVoucher = ({
   totalPrice,
   paymentMethod,
   shippingFee,
-  selectedVoucherIds,
-  onChangeSelectedVouchers,
+  selectedVoucherId,
+  onVoucherApplied,
+  userId,
 }) => {
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    setSelected(selectedVoucherIds || []);
-  }, [selectedVoucherIds]);
-
-  const handleSelect = (voucherId, canUse) => {
-    if (!canUse) return;
-    setSelected((prev) =>
-      prev.includes(voucherId)
-        ? prev.filter((id) => id !== voucherId)
-        : [...prev, voucherId]
-    );
-  };
-
-  const handleApply = () => {
-    onChangeSelectedVouchers(selected);
-    onClose();
-    message.success("Áp dụng voucher thành công!");
-  };
+    setSelected(selectedVoucherId || null);
+  }, [selectedVoucherId]);
 
   const getVoucherDiscount = (voucher) => {
     const validPrice = !voucher.min_order_amount || totalPrice >= voucher.min_order_amount;
-    const isValid = validPrice;
-
-    if (!isValid) return 0;
+    const validPayment = !voucher.payment_required || paymentMethod === voucher.payment_required;
+    if (!validPrice || !validPayment) return 0;
 
     if (voucher.type === "fixed") {
       return voucher.discount_amount;
@@ -50,12 +37,22 @@ const ModalVoucher = ({
     return 0;
   };
 
-  const totalDiscount = vouchers.reduce((sum, v) => {
-    if (selected.includes(v.id_voucher)) {
-      return sum + getVoucherDiscount(v);
+  const handleApply = async () => {
+    if (!selected) {
+      message.warning("Vui lòng chọn 1 voucher để áp dụng.");
+      return;
     }
-    return sum;
-  }, 0);
+
+    try {
+      const res = await applyVoucherAPI(userId, vouchers.find(v => v.id_voucher === selected)?.code);
+      message.success(res.message || "Áp dụng voucher thành công!");
+      onVoucherApplied(selected);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      message.error("Không thể áp dụng voucher. Vui lòng thử lại.");
+    }
+  };
 
   return (
     <Modal
@@ -69,62 +66,53 @@ const ModalVoucher = ({
         style: { background: "#DBB671", borderColor: "#DBB671", color: "#000" },
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <Radio.Group
+        value={selected}
+        onChange={(e) => setSelected(e.target.value)}
+        style={{ width: "100%" }}
+      >
         {vouchers.map((voucher) => {
-          const validPrice = !voucher.min_order_amount || totalPrice >= voucher.min_order_amount;
-          const canUse = validPrice;
-
-          const isChecked = selected.includes(voucher.id_voucher);
           const discount = getVoucherDiscount(voucher);
+          const disabled = discount <= 0;
 
           return (
-            <div
+            <Radio
               key={voucher.id_voucher}
-              onClick={() => handleSelect(voucher.id_voucher, canUse)}
+              value={voucher.id_voucher}
+              disabled={disabled}
               style={{
-                cursor: canUse ? "pointer" : "not-allowed",
-                backgroundColor: canUse ? "#fff" : "#f5f5f5",
-                padding: 10,
+                display: "block",
+                padding: "8px",
+                border: selected === voucher.id_voucher ? "2px solid #DBB671" : "1px solid #ddd",
                 borderRadius: 6,
-                border: isChecked ? "2px solid #DBB671" : "1px solid #ddd",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
+                marginBottom: 12,
+                cursor: disabled ? "not-allowed" : "pointer",
+                backgroundColor: disabled ? "#f5f5f5" : "#fff",
               }}
             >
-              <Checkbox checked={isChecked} disabled={!canUse} />
-              <div>
-                <Typography.Text strong>{voucher.code}</Typography.Text>
-                <br />
-                <Typography.Text type="secondary">
-                  {voucher.type === "fixed" &&
-                    `Giảm ${voucher.discount_amount.toLocaleString()}₫. `}
-                  {voucher.type === "percentage" &&
-                    `Giảm ${voucher.discount_amount}%${
+              <Typography.Text strong>{voucher.code}</Typography.Text>
+              <br />
+              <Typography.Text type="secondary">
+                {voucher.type === "fixed"
+                  ? `Giảm ${voucher.discount_amount.toLocaleString()}₫. `
+                  : `Giảm ${voucher.discount_amount}%${
                       voucher.max_discount_amount
                         ? ` (tối đa ${voucher.max_discount_amount.toLocaleString()}₫)`
                         : ""
                     }. `}
-                  {voucher.min_order_amount &&
-                    `Đơn từ ${voucher.min_order_amount.toLocaleString()}₫. `}
-                  {voucher.note && voucher.note}
-                </Typography.Text>
-                {canUse && discount > 0 && (
-                  <div style={{ color: "green", fontWeight: 500 }}>
-                    → Giảm: {discount.toLocaleString()}₫
-                  </div>
-                )}
-              </div>
-            </div>
+                {voucher.min_order_amount &&
+                  `Đơn từ ${voucher.min_order_amount.toLocaleString()}₫. `}
+                {voucher.note}
+              </Typography.Text>
+              {discount > 0 && (
+                <div style={{ color: "green", fontWeight: 500 }}>
+                  → Giảm: {discount.toLocaleString()}₫
+                </div>
+              )}
+            </Radio>
           );
         })}
-      </div>
-
-      {totalDiscount > 0 && (
-        <div style={{ marginTop: 16, fontWeight: 600, color: "green" }}>
-          Tổng giảm giá: {totalDiscount.toLocaleString()}₫
-        </div>
-      )}
+      </Radio.Group>
     </Modal>
   );
 };

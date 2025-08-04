@@ -13,6 +13,7 @@ import ResetPasswordPage from "@components/ResetPasswordPage";
 import CategoryPage from "@pages/Category/CategoryPage";
 import ProductDetailPage from "@pages/ProductDetail/ProductDetailPage";
 import CartPage from "@pages/Cart/CartPage";
+import OrderDetailPage from "@pages/OrderDetail/OrderDetailPage";
 import endPoints from "@routes/router";
 import RequireAdminAuth from "@admin/routes/RequireAdminAuth";
 import AdminRoutes from "@admin/routes/AdminRoutes";
@@ -22,7 +23,6 @@ const App = () => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
 
-  // Chạy 1 lần khi App khởi động để restore user và cart
   useEffect(() => {
     dispatch(restoreUserFromLocalStorage());
   }, [dispatch]);
@@ -125,6 +125,14 @@ const App = () => {
           element={
             <MainLayout>
               <CartPage />
+            </MainLayout>
+          }
+        />
+        <Route
+          path={endPoints.ORDER_DETAIL}
+          element={
+            <MainLayout>
+              <OrderDetailPage />
             </MainLayout>
           }
         />

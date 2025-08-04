@@ -6,6 +6,7 @@ import CategoryManagement from '@adminPages/CategoryManagement'; // trang quản
 import ProductManagement from '@adminPages/ProductManagement';
 import UserManagement from '@adminPages/UserManagement';
 import VoucherManagement from '@adminPages/VoucherManagement';
+import OrderManagement from '@adminPages/OrderManagement'; 
 import Dashboard from '@adminPages/Dashboard'; // nếu có
 
 
@@ -18,6 +19,7 @@ const AdminRoutes = () => {
         <Route path="product" element={<ProductManagement />} />
         <Route path="user" element={<UserManagement />} />
         <Route path="voucher" element={<VoucherManagement />} />
+        <Route path="order" element={<OrderManagement />} />
       </Route>
     </Routes>
   );

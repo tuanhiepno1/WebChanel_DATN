@@ -1,3 +1,5 @@
+import OrderDetailPage from "../pages/OrderDetail/OrderDetailPage";
+
 const endPoints = {
   ALL: "/",
   DASHBOARD: "/dashboard",
@@ -9,6 +11,7 @@ const endPoints = {
   FORGOT_PASSWORD_RESET: "/forgot-password/reset",
   CATEGORY: "/category/:slug",
   PRODUCT_DETAIL: "/category/:slug/:id",
+  ORDER_DETAIL: "/order/:id",
   TINTUC: "/tin-tuc",
   LIENHE: "/lien-he",
   GIOHANG: "/gio-hang",

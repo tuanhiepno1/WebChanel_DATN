@@ -25,7 +25,8 @@ import DeliveryInfoForm from "@components/DeliveryInfoForm";
 import CheckoutModal from "@components/CheckoutModal";
 import { useNavigate } from "react-router-dom";
 import ModalVoucher from "@components/ModalVoucher";
-import { fetchVouchers, checkoutAPI } from "@api/cartApi";
+import { fetchVouchers, checkoutAPI, applyVoucherAPI } from "@api/cartApi";
+import { fetchOrderHistoryByUserId } from "@api/userApi";
 
 const CartPage = () => {
   const dispatch = useDispatch();
@@ -46,7 +47,7 @@ const CartPage = () => {
     address: user?.address || "",
   });
   const [tempDeliveryInfo, setTempDeliveryInfo] = useState(deliveryInfo);
-  const [selectedVoucherIds, setSelectedVoucherIds] = useState([]);
+  const [selectedVoucherId, setSelectedVoucherId] = useState(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -105,26 +106,46 @@ const CartPage = () => {
 
   const shippingFee = paymentMethod === "cod" ? 30000 : 0;
 
-  const totalVoucherDiscount = vouchers.reduce((sum, v) => {
-    if (selectedVoucherIds.includes(v.id_voucher)) {
-      const validPrice =
-        !v.min_order_amount || totalPrice >= v.min_order_amount;
-      const validPayment =
-        !v.payment_required || paymentMethod === v.payment_required;
-      if (!validPrice || !validPayment) return sum;
-      if (v.type === "fixed") return sum + (v.discount_amount || 0);
-      if (v.type === "percentage") {
-        const percentDiscount = (v.discount_amount / 100) * totalPrice;
-        return (
-          sum +
-          Math.min(percentDiscount, v.max_discount_amount || percentDiscount)
-        );
-      }
+  const getVoucherDiscount = (voucher) => {
+    const validPrice =
+      !voucher.min_order_amount || totalPrice >= voucher.min_order_amount;
+    const validPayment =
+      !voucher.payment_required || paymentMethod === voucher.payment_required;
+    if (!validPrice || !validPayment) return 0;
+
+    if (voucher.type === "fixed") return voucher.discount_amount;
+
+    if (voucher.type === "percentage") {
+      const percentDiscount = (voucher.discount_amount / 100) * totalPrice;
+      return Math.min(
+        percentDiscount,
+        voucher.max_discount_amount || percentDiscount
+      );
     }
-    return sum;
-  }, 0);
+
+    return 0;
+  };
+
+  const totalVoucherDiscount = selectedVoucherId
+    ? getVoucherDiscount(
+        vouchers.find((v) => v.id_voucher === selectedVoucherId)
+      )
+    : 0;
 
   const finalTotal = totalPrice + shippingFee - totalVoucherDiscount;
+
+  const handleApplyVoucher = async (voucherId) => {
+    const voucher = vouchers.find((v) => v.id_voucher === voucherId);
+    if (!voucher) return;
+    try {
+      const res = await applyVoucherAPI(user.id, voucher.code);
+      message.success(res.message || "Áp dụng voucher thành công!");
+      setSelectedVoucherId(voucherId);
+    } catch (err) {
+      console.error(err);
+      message.error("Không thể áp dụng voucher. Vui lòng thử lại.");
+    }
+  };
 
   return (
     <>
@@ -380,7 +401,6 @@ const CartPage = () => {
           form={form}
         />
       </Modal>
-
       <ModalVoucher
         visible={voucherModalVisible}
         onClose={() => setVoucherModalVisible(false)}
@@ -388,8 +408,9 @@ const CartPage = () => {
         totalPrice={totalPrice}
         paymentMethod={paymentMethod}
         shippingFee={shippingFee}
-        selectedVoucherIds={selectedVoucherIds}
-        onChangeSelectedVouchers={setSelectedVoucherIds}
+        selectedVoucherId={selectedVoucherId}
+        onVoucherApplied={handleApplyVoucher}
+        userId={user.id}
       />
 
       <CheckoutModal
@@ -402,11 +423,22 @@ const CartPage = () => {
               phone: deliveryInfo.phone,
               address: deliveryInfo.address,
               payment_method: paymentMethod,
+              voucher_id: selectedVoucherId,
+              total_price: finalTotal,
             });
 
             setCheckoutVisible(false);
             message.success("Đặt hàng thành công!");
-            dispatch(fetchCart(user.id)); // cập nhật lại giỏ hàng
+            dispatch(fetchCart(user.id));
+
+            // 👉 Gọi lấy đơn hàng mới nhất
+            const orderHistory = await fetchOrderHistoryByUserId(user.id);
+            if (orderHistory && orderHistory.length > 0) {
+              const latestOrder = orderHistory[0]; // giả định BE trả danh sách mới nhất trước
+              navigate(`/order/${latestOrder.id_order}`);
+            } else {
+              navigate("/order-history");
+            }
           } catch (error) {
             console.error("Checkout failed", error);
             message.error("Đặt hàng thất bại. Vui lòng thử lại.");

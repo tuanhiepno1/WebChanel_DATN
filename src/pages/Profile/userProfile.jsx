@@ -8,7 +8,6 @@ import {
   List,
   Typography,
   Tag,
-  Divider,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -17,19 +16,19 @@ import {
   HomeOutlined,
   CalendarOutlined,
   ShoppingOutlined,
-  EnvironmentOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import { fetchOrderHistoryByUserId } from "@api/userApi";
+import { ORDER_STATUS } from "@utils/orderStatus";
 import endPoints from "@routes/router";
 import HeaderComponent from "@components/Header";
 import FooterComponent from "@components/Footer";
 import EditUserModal from "@components/EditUserModal";
 import ChangePasswordModal from "@components/ChangePasswordModal";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
@@ -41,22 +40,9 @@ const UserProfile = () => {
   const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
   const getOrderTag = (status) => {
-    switch (status) {
-      case "delivered":
-      case "Đã giao":
-        return <Tag color="green">Đã giao</Tag>;
-      case "shipping":
-      case "Đang giao":
-        return <Tag color="blue">Đang giao</Tag>;
-      case "preparing":
-      case "Đang xử lý":
-        return <Tag color="orange">Đang xử lý</Tag>;
-      case "cart":
-        return <Tag color="red">Chưa xác nhận</Tag>;
-      default:
-        return <Tag>{status}</Tag>;
-    }
-  };
+  const tagInfo = ORDER_STATUS[status];
+  return tagInfo ? <Tag color={tagInfo.color}>{tagInfo.label}</Tag> : <Tag>{status}</Tag>;
+};
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "Không rõ";
@@ -133,21 +119,19 @@ const UserProfile = () => {
             Quay lại
           </Button>
 
-          <Card variant style={{ marginBottom: 24 }}>
+          <Card style={{ marginBottom: 24 }}>
             <Row gutter={[32, 32]}>
               <Col xs={24} sm={8} style={{ textAlign: "center" }}>
                 <Avatar
                   src={user.image || defaultAvatar}
                   size={150}
-                  onError={() =>
-                    console.warn("Không load được avatar:", user.image)
-                  }
                   style={{ marginBottom: 16 }}
                 />
 
                 <div style={{ fontSize: 18, fontWeight: 600 }}>
                   {user?.username}
                 </div>
+
                 <Button
                   type="primary"
                   style={{
@@ -227,9 +211,25 @@ const UserProfile = () => {
                       </span>
                     }
                     extra={
-                      <Text strong style={{ color: "#d4380d" }}>
-                        Tổng: {formatCurrency(order.total)}
-                      </Text>
+                      <>
+                        <Text
+                          strong
+                          style={{ color: "#d4380d", marginRight: 12 }}
+                        >
+                          Tổng: {formatCurrency(order.total)}
+                        </Text>
+                        <Button
+                          type="link"
+                          onClick={() => navigate(`/order/${order.id_order}`)}
+                          style={{
+                            backgroundColor: "#DBB671",
+                            borderColor: "#DBB671",
+                            color: "#000",
+                          }}
+                        >
+                          Xem chi tiết
+                        </Button>
+                      </>
                     }
                   >
                     <List
@@ -270,21 +270,20 @@ const UserProfile = () => {
               />
             )}
           </Card>
+
           <EditUserModal
             visible={editVisible}
             onClose={() => setEditVisible(false)}
             user={user}
-            onSuccess={() => {
-              setEditVisible(false);
-            }}
+            onSuccess={() => setEditVisible(false)}
+          />
+
+          <ChangePasswordModal
+            visible={changePasswordVisible}
+            onCancel={() => setChangePasswordVisible(false)}
+            email={user.email}
           />
         </div>
-
-        <ChangePasswordModal
-          visible={changePasswordVisible}
-          onCancel={() => setChangePasswordVisible(false)}
-          email={user.email}
-        />
       </div>
       <FooterComponent />
     </>
