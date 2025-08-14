@@ -8,6 +8,9 @@ import {
   List,
   Typography,
   Tag,
+  message,
+  Modal,
+  Input,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -20,7 +23,7 @@ import {
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
-import { fetchOrderHistoryByUserId } from "@api/userApi";
+import { fetchOrderHistoryByUserId, cancelOrder } from "@api/userApi";
 import { ORDER_STATUS } from "@utils/orderStatus";
 import endPoints from "@routes/router";
 import HeaderComponent from "@components/Header";
@@ -38,11 +41,18 @@ const UserProfile = () => {
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
 
   const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+  const canCancel = (status) => {
+    return ["ordered", "preparing"].includes(status);
+  };
 
   const getOrderTag = (status) => {
-  const tagInfo = ORDER_STATUS[status];
-  return tagInfo ? <Tag color={tagInfo.color}>{tagInfo.label}</Tag> : <Tag>{status}</Tag>;
-};
+    const tagInfo = ORDER_STATUS[status];
+    return tagInfo ? (
+      <Tag color={tagInfo.color}>{tagInfo.label}</Tag>
+    ) : (
+      <Tag>{status}</Tag>
+    );
+  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "Không rõ";
@@ -68,6 +78,40 @@ const UserProfile = () => {
     };
     loadOrderHistory();
   }, [user?.id_user]);
+
+  const handleCancelOrder = (order) => {
+    const notesRef = { current: "" };
+
+    Modal.confirm({
+      title: `Hủy đơn #${order.id_order}?`,
+      content: (
+        <Input.TextArea
+          placeholder="Lý do hủy (tùy chọn)"
+          autoSize={{ minRows: 3 }}
+          onChange={(e) => (notesRef.current = e.target.value)}
+        />
+      ),
+      okText: "Xác nhận hủy",
+      cancelText: "Không",
+      okButtonProps: { danger: true },
+      async onOk() {
+        try {
+          await cancelOrder(user.id_user, {
+            id_order: order.id_order,
+            notes: notesRef.current || "Customer requested cancellation",
+          });
+          message.success(`Đã hủy đơn #${order.id_order}`);
+          setOrderHistory((prev) =>
+            prev.map((o) =>
+              o.id_order === order.id_order ? { ...o, status: "cart" } : o
+            )
+          );
+        } catch (err) {
+          message.error(err?.response?.data?.message || "Hủy đơn thất bại");
+        }
+      },
+    });
+  };
 
   if (!user) {
     return (
@@ -218,6 +262,17 @@ const UserProfile = () => {
                         >
                           Tổng: {formatCurrency(order.total)}
                         </Text>
+
+                        {canCancel(order.status) && (
+                          <Button
+                            danger
+                            style={{ marginRight: 8 }}
+                            onClick={() => handleCancelOrder(order)}
+                          >
+                            Hủy đơn
+                          </Button>
+                        )}
+
                         <Button
                           type="link"
                           onClick={() => navigate(`/order/${order.id_order}`)}

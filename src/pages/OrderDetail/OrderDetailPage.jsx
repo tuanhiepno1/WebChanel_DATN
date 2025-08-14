@@ -10,12 +10,24 @@ import {
   message,
   Tag,
   Button,
+  Alert,
+  Space,
+  Typography,
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { ORDER_STATUS } from "@utils/orderStatus";
 import Header from "@components/header";
 import Footer from "@components/footer";
+import { buildVietQRUrl } from "@utils/vietqr";
 
+const { Text } = Typography;
+
+// Helper đặt ngoài component để tránh tạo lại mỗi render
+const extractPaymentCode = (text) => {
+  if (!text) return null;
+  const m = text.match(/mã\s*ck\s*:\s*([A-Z0-9_]+)/i);
+  return m?.[1] || null;
+};
 
 const OrderDetailPage = () => {
   const { id } = useParams();
@@ -23,13 +35,14 @@ const OrderDetailPage = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Load đơn hàng
   useEffect(() => {
     const fetchOrder = async () => {
       try {
         const data = await getOrderById(id);
         setOrder(data);
       } catch (err) {
-        message.error(err.message);
+        message.error(err?.message || "Không tải được đơn hàng");
       } finally {
         setLoading(false);
       }
@@ -37,8 +50,38 @@ const OrderDetailPage = () => {
     fetchOrder();
   }, [id]);
 
-  if (loading) return <Spin fullscreen />;
+  // Nếu đã paid thì dọn localStorage để tránh hiển thị nhầm thông tin VietQR cũ
+  useEffect(() => {
+    if (order?.status === "paid") {
+      localStorage.removeItem("lastVietQRCode");
+      localStorage.removeItem("lastVietQRAmount");
+    }
+  }, [order?.status]);
 
+  // ----- Chuẩn bị dữ liệu VietQR (không dùng hook) -----
+  const isVietQR = order?.payment_method === "vietqr";
+
+  const embeddedCode = extractPaymentCode(order?.address);
+  const lsCode = localStorage.getItem("lastVietQRCode");
+  const paymentCode = isVietQR ? (embeddedCode || lsCode) : null;
+
+  // Ưu tiên tổng tiền từ BE; nếu không có (trường hợp đơn vừa đặt), fallback localStorage
+  const lsAmt = Number(localStorage.getItem("lastVietQRAmount") || 0);
+  const amountForQR = Number(order?.total || 0) > 0 ? Number(order?.total) : lsAmt;
+
+  const vietqrUrl =
+    isVietQR && paymentCode && amountForQR > 0
+      ? buildVietQRUrl({
+          bank: "TPB",
+          accountNumber: "04330819301",
+          accountName: "TUAN HIEP",
+          amount: amountForQR,
+          addInfo: paymentCode,
+          template: "print",
+        })
+      : null;
+
+  if (loading) return <Spin fullscreen />;
   if (!order) return <div>Không tìm thấy đơn hàng</div>;
 
   const columns = [
@@ -51,15 +94,13 @@ const OrderDetailPage = () => {
       title: "Ảnh",
       dataIndex: ["product", "image"],
       key: "image",
-      render: (img) => (
-        <Image src={`http://localhost:8000/${img}`} width={80} />
-      ),
+      render: (img) => <Image src={`http://localhost:8000/${img}`} width={80} />,
     },
     {
       title: "Giá",
       dataIndex: ["product", "price"],
       key: "price",
-      render: (price) => `${price.toLocaleString()}₫`,
+      render: (price) => `${Number(price).toLocaleString()}₫`,
     },
     {
       title: "Số lượng",
@@ -70,7 +111,7 @@ const OrderDetailPage = () => {
       title: "Tổng",
       key: "total",
       render: (_, record) =>
-        `${(record.quantity * record.product.price).toLocaleString()}₫`,
+        `${(Number(record.quantity) * Number(record.product.price)).toLocaleString()}₫`,
     },
   ];
 
@@ -99,9 +140,7 @@ const OrderDetailPage = () => {
               {order.customer_name}
             </Descriptions.Item>
             <Descriptions.Item label="SĐT">{order.phone}</Descriptions.Item>
-            <Descriptions.Item label="Địa chỉ">
-              {order.address}
-            </Descriptions.Item>
+            <Descriptions.Item label="Địa chỉ">{order.address}</Descriptions.Item>
             <Descriptions.Item label="Phương thức thanh toán">
               {order.payment_method === "cod"
                 ? "Thanh toán khi nhận hàng"
@@ -122,9 +161,76 @@ const OrderDetailPage = () => {
               </Descriptions.Item>
             )}
             <Descriptions.Item label="Tổng tiền">
-              <strong>{order.total.toLocaleString()}₫</strong>
+              <strong>{Number(order.total).toLocaleString()}₫</strong>
             </Descriptions.Item>
           </Descriptions>
+
+          {/* {isVietQR && (
+            <>
+              <h3 style={{ marginTop: 24 }}>Thanh toán VietQR</h3>
+
+              {!paymentCode ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="Không tìm thấy mã nội dung chuyển khoản"
+                  description="Vui lòng kiểm tra lại phần địa chỉ trong đơn (có chứa 'MÃ CK: <CODE>') hoặc liên hệ hỗ trợ."
+                  style={{ marginBottom: 16 }}
+                />
+              ) : (
+                <Card size="small" style={{ marginTop: 8, marginBottom: 16 }}>
+                  <Space
+                    align="center"
+                    style={{ width: "100%", justifyContent: "space-between", gap: 16 }}
+                  >
+                    <div>
+                      <div style={{ marginBottom: 6 }}>
+                        <Text>Mã nội dung CK:&nbsp;</Text>
+                        <Text strong>{paymentCode}</Text>
+                        <Button
+                          size="small"
+                          style={{ marginLeft: 8 }}
+                          onClick={() => navigator.clipboard.writeText(paymentCode)}
+                        >
+                          Sao chép
+                        </Button>
+                      </div>
+                      <div>
+                        <Text>Số tiền cần chuyển:&nbsp;</Text>
+                        <Text strong>{amountForQR.toLocaleString()}₫</Text>
+                      </div>
+                      <div style={{ marginTop: 8, maxWidth: 520 }}>
+                        <Alert
+                          type="info"
+                          showIcon
+                          message="Lưu ý"
+                          description="Vui lòng chuyển khoản đúng số tiền và nhập chính xác 'Mã nội dung CK' ở trên để hệ thống dễ đối soát."
+                        />
+                      </div>
+                    </div>
+
+                    {vietqrUrl ? (
+                      <Image
+                        src={vietqrUrl}
+                        alt="VietQR"
+                        width={180}
+                        preview={false}
+                        style={{ borderRadius: 8 }}
+                      />
+                    ) : (
+                      <Alert
+                        type="error"
+                        showIcon
+                        message="Không tạo được ảnh QR"
+                        description="Thiếu số tiền hoặc mã nội dung CK không hợp lệ."
+                        style={{ minWidth: 220 }}
+                      />
+                    )}
+                  </Space>
+                </Card>
+              )}
+            </>
+          )} */}
 
           <h3 style={{ marginTop: 24 }}>Danh sách sản phẩm</h3>
           <Table

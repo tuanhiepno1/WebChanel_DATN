@@ -25,6 +25,7 @@ import DeliveryInfoForm from "@components/DeliveryInfoForm";
 import CheckoutModal from "@components/CheckoutModal";
 import { useNavigate } from "react-router-dom";
 import ModalVoucher from "@components/ModalVoucher";
+import VietQRPayModal from "@components/VietQRPayModal";
 import { fetchVouchers, checkoutAPI, applyVoucherAPI } from "@api/cartApi";
 import { fetchOrderHistoryByUserId } from "@api/userApi";
 
@@ -35,6 +36,7 @@ const CartPage = () => {
   const user = useSelector((state) => state.auth.user);
   const [form] = Form.useForm();
 
+  const [vietqrOpen, setVietqrOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("vnpay");
   const [selectedIds, setSelectedIds] = useState([]);
   const [openDeliveryModal, setOpenDeliveryModal] = useState(false);
@@ -316,8 +318,8 @@ const CartPage = () => {
                 <Radio value="cod" style={{ flex: 1, textAlign: "center" }}>
                   Thanh toán COD
                 </Radio>
-                <Radio value="vnpay" style={{ flex: 1, textAlign: "center" }}>
-                  Thanh toán VNPay
+                <Radio value="vietqr" style={{ flex: 1, textAlign: "center" }}>
+                  Thanh toán online (VietQR)
                 </Radio>
               </Radio.Group>
 
@@ -369,7 +371,15 @@ const CartPage = () => {
 
               <Button
                 block
-                onClick={() => setCheckoutVisible(true)}
+                onClick={async () => {
+                  if (paymentMethod === "vietqr") {
+                    // Mở modal VietQR, KH chuyển khoản xong sẽ bấm "Tôi đã chuyển khoản"
+                    setVietqrOpen(true);
+                    return;
+                  }
+                  // Giữ nguyên luồng cũ cho COD/VNPay của bạn
+                  setCheckoutVisible(true);
+                }}
                 style={{
                   background: "#DBB671",
                   borderColor: "#DBB671",
@@ -449,6 +459,53 @@ const CartPage = () => {
         selectedIds={selectedIds}
         paymentMethod={paymentMethod}
         total={finalTotal}
+      />
+
+      <VietQRPayModal
+        open={vietqrOpen}
+        onClose={() => setVietqrOpen(false)}
+        totalAmount={finalTotal}
+        userId={user?.id}
+        onConfirmTransferred={async ({ paymentCode, amount }) => {
+          try {
+            const payload = {
+              customer_name: deliveryInfo.name,
+              phone: deliveryInfo.phone,
+              // Nhét mã CK để admin tra sao kê
+              address: `${deliveryInfo.address} | MÃ CK: ${paymentCode}`,
+              payment_method: "vietqr",
+              voucher_id: selectedVoucherId,
+              total_price: amount,
+            };
+
+            const res = await checkoutAPI(user.id, payload);
+
+            // 👉 Ưu tiên dùng id_order trả về từ API nếu có:
+            const createdId =
+              res?.data?.id_order || res?.id_order || res?.order?.id_order;
+
+            message.success(
+              "Đặt hàng thành công! Đang chuyển đến chi tiết đơn…"
+            );
+            setVietqrOpen(false);
+            dispatch(fetchCart(user.id));
+
+            if (createdId) {
+              navigate(`/order/${createdId}`);
+            } else {
+              // Fallback: lấy danh sách đơn và chọn đơn mới nhất
+              const orderHistory = await fetchOrderHistoryByUserId(user.id);
+              if (orderHistory && orderHistory.length > 0) {
+                navigate(`/order/${orderHistory[0].id_order}`);
+              } else {
+                navigate("/order-history");
+              }
+            }
+          } catch (error) {
+            console.error(error);
+            message.error("Không tạo được đơn. Vui lòng thử lại.");
+          }
+        }}
       />
 
       <Footer />

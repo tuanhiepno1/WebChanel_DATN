@@ -105,3 +105,11 @@ export const resetPassword = async (data) => {
     );
   }
 };
+
+export const cancelOrder = async (id_user, { id_order, notes }) => {
+  const res = await axiosClient.put(`/orders/${id_user}/cancel`, {
+    id_order,
+    notes,
+  });
+  return res.data; // { status: "success", order: {...} }
+};
