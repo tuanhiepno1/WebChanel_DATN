@@ -18,8 +18,7 @@ const GenericSidebar = ({
   // ---- Điều hướng tới trang chi tiết sản phẩm
   const goDetail = (prod) => {
     if (!prod) return;
-    const id =
-      prod.id ?? prod.id_product ?? prod.productId ?? prod._id;
+    const id = prod.id ?? prod.id_product ?? prod.productId ?? prod._id;
     const slug =
       prod.category_slug ??
       localStorage.getItem("lastCategorySlug") ??
@@ -30,7 +29,14 @@ const GenericSidebar = ({
   };
 
   return (
-    <div style={{ padding: 16, background: "#fff", borderRadius: 8, height: "100%" }}>
+    <div
+      style={{
+        padding: 16,
+        background: "#fff",
+        borderRadius: 8,
+        height: "100%",
+      }}
+    >
       {/* Khoảng giá (demo, chưa áp dụng) */}
       <Divider orientation="left">Khoảng giá</Divider>
       <Slider
@@ -89,8 +95,12 @@ const GenericSidebar = ({
                 transition: "background 0.2s",
               }}
               onClick={() => onSubcategoryClick?.(idSub)}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0f0")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#f0f0f0")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
             >
               <Text>{typeof cat === "string" ? cat : cat.category_name}</Text>
               <RightOutlined style={{ fontSize: 12 }} />
@@ -100,7 +110,12 @@ const GenericSidebar = ({
       </div>
 
       {/* Nút Bỏ lọc */}
-      <Button block icon={<ReloadOutlined />} style={{ marginTop: 12 }} onClick={onResetFilters}>
+      <Button
+        block
+        icon={<ReloadOutlined />}
+        style={{ marginTop: 12 }}
+        onClick={onResetFilters}
+      >
         Bỏ lọc / Hiển thị tất cả
       </Button>
 
@@ -124,7 +139,9 @@ const GenericSidebar = ({
               transition: "background .2s",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "transparent")
+            }
           >
             <img
               src={prod.image}
@@ -139,15 +156,26 @@ const GenericSidebar = ({
               }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Text strong style={{ fontSize: 14, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <Text
+                strong
+                style={{
+                  fontSize: 14,
+                  display: "block",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
                 {prod.name}
               </Text>
               <Text type="danger" style={{ fontSize: 13, display: "block" }}>
                 {typeof prod.price === "number"
-                  ? prod.price.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
+                  ? prod.price.toLocaleString("vi-VN", {
+                      style: "currency",
+                      currency: "VND",
+                    })
                   : prod.price}
               </Text>
-              <Rate disabled defaultValue={prod.rating || 4} style={{ fontSize: 12 }} />
             </div>
           </div>
         ))}

@@ -1,47 +1,53 @@
 import React, { useState } from "react";
-import { Card, Row, Col, Pagination, Rate, Tooltip } from "antd";
+import { Card, Row, Col, Pagination, Tooltip, message } from "antd"; 
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { addToCart } from "@redux/cartSlice";
+import { useDispatch, useSelector } from "react-redux";             
+import { addToCart, fetchCart } from "@redux/cartSlice";
 import { ShoppingCartOutlined } from "@ant-design/icons";
+import { addToCartAPI } from "@api/cartApi"; 
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const user = useSelector((s) => s.auth.user); 
 
-  const handleAddToCart = (e) => {
-    e.stopPropagation();
+  const handleAddToCart = async (e) => {
+  e.stopPropagation();
 
-    // Làm sạch price nếu là string
-    const cleanedPrice =
-      typeof product.price === "string"
-        ? product.price.replace(/[^\d]/g, "") // chỉ giữ lại số
-        : product.price;
+  
+  const cleanedPrice =
+    typeof product.price === "string" ? product.price.replace(/[^\d]/g, "") : product.price;
+  const fixedPrice = Number(cleanedPrice) || 0;
 
-    const fixedPrice = Number(cleanedPrice) || 0;
+  if (!user?.id) {
+    
+    dispatch(addToCart({ ...product, price: fixedPrice, quantity: 1 }));
+    message.success("Đã thêm sản phẩm vào giỏ hàng!");
+    return;
+  }
 
-    dispatch(
-      addToCart({
-        ...product,
-        price: fixedPrice,
-      })
-    );
+  try {
+    
+    await addToCartAPI(user.id, {
+      id_product: product.id,
+      quantity: 1,
+    });
 
-    navigate("/gio-hang");
-  };
+    // Sync lại giỏ từ BE để UI cập nhật
+    await dispatch(fetchCart(user.id));
+
+    message.success("Đã thêm sản phẩm vào giỏ hàng!");
+  } catch (err) {
+    console.error(err);
+    message.error("Thêm vào giỏ thất bại. Vui lòng thử lại.");
+  }
+};
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined || value === "") return "0 ₫";
-
-    // Xử lý chuỗi có ký hiệu tiền tệ hoặc dấu phẩy
-    const cleaned = String(value).replace(/[^\d]/g, ""); // chỉ giữ lại chữ số
+    const cleaned = String(value).replace(/[^\d]/g, "");
     const number = Number(cleaned);
-
-    if (isNaN(number)) {
-      console.warn("❌ Không thể convert giá trị:", value);
-      return "0 ₫";
-    }
-
+    if (isNaN(number)) return "0 ₫";
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
@@ -149,11 +155,7 @@ const ProductCard = ({ product }) => {
           <h4 style={{ fontSize: 18, minHeight: 42, marginBottom: 8 }}>
             {product.name}
           </h4>
-          <Rate
-            disabled
-            defaultValue={product.rating || 4}
-            style={{ fontSize: 16, marginBottom: 8 }}
-          />
+          {/* ĐÃ BỎ RATING  */}
         </div>
         <span
           style={{
@@ -182,7 +184,6 @@ export const ProductGrid = ({ products }) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Tính số slot trống để bổ sung
   const remainder = currentProducts.length % 3;
   const emptySlots = remainder === 0 ? 0 : 3 - remainder;
 
@@ -190,28 +191,16 @@ export const ProductGrid = ({ products }) => {
     <>
       <Row gutter={[24, 24]} align="stretch">
         {currentProducts.map((product) => (
-          <Col
-            key={product.id}
-            xs={24}
-            sm={12}
-            md={8}
-            style={{ display: "flex" }}
-          >
+          <Col key={product.id} xs={24} sm={12} md={8} style={{ display: "flex" }}>
             <div style={{ flex: 1 }}>
               <ProductCard product={product} />
             </div>
           </Col>
         ))}
 
-        {/* Cột rỗng để giữ layout nếu thiếu sản phẩm trên hàng cuối */}
+        {/* Cột rỗng giữ layout nếu thiếu sản phẩm trên hàng cuối */}
         {Array.from({ length: emptySlots }).map((_, index) => (
-          <Col
-            key={`empty-${index}`}
-            xs={24}
-            sm={12}
-            md={8}
-            style={{ display: "flex" }}
-          >
+          <Col key={`empty-${index}`} xs={24} sm={12} md={8} style={{ display: "flex" }}>
             <div style={{ flex: 1, visibility: "hidden" }}>
               <ProductCard product={{}} />
             </div>
