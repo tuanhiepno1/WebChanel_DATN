@@ -1,11 +1,11 @@
 import axiosClient from "@api/axiosClient";
 
-
-
 export const fetchActiveProductCategories = async () => {
   try {
     const response = await axiosClient.get("/categories");
-    return response.data.categories.filter((category) => category.status === "active");
+    return response.data.categories.filter(
+      (category) => category.status === "active"
+    );
   } catch (error) {
     console.error("Lỗi khi lấy danh mục sản phẩm:", error);
     throw error;
@@ -14,7 +14,9 @@ export const fetchActiveProductCategories = async () => {
 
 export const fetchProductsByCategory = async (id_category) => {
   try {
-    const response = await axiosClient.get(`/products-by-category/${id_category}`);
+    const response = await axiosClient.get(
+      `/products-by-category/${id_category}`
+    );
     return response.data?.data || []; // luôn trả về mảng
   } catch (error) {
     console.error("Lỗi khi lấy sản phẩm theo danh mục:", error);
@@ -24,11 +26,15 @@ export const fetchProductsByCategory = async (id_category) => {
 
 export const fetchProductsBySubcategory = async (id_subcategory) => {
   try {
-    const response = await axiosClient.get(`/products-by-subcategory/${id_subcategory}`);
+    const response = await axiosClient.get(
+      `/products-by-subcategory/${id_subcategory}`
+    );
     return response.data?.data || [];
   } catch (error) {
     if (error.response?.status === 404) {
-      console.warn(`Không tìm thấy sản phẩm cho danh mục con id=${id_subcategory}`);
+      console.warn(
+        `Không tìm thấy sản phẩm cho danh mục con id=${id_subcategory}`
+      );
       return []; // trả về mảng rỗng thay vì throw
     }
     console.error("Lỗi khi lấy sản phẩm theo danh mục con:", error);
@@ -36,21 +42,25 @@ export const fetchProductsBySubcategory = async (id_subcategory) => {
   }
 };
 
-
 export const fetchProductsByCategorySlug = async (slug) => {
   try {
     const categories = await fetchActiveProductCategories();
 
     // Tìm trong subcategories trước
     for (const cat of categories) {
-      const sub = cat.subcategories?.find((sub) => sub.slug === slug && sub.status === 'active');
+      const sub = cat.subcategories?.find(
+        (sub) => sub.slug === slug && sub.status === "active"
+      );
       if (sub) {
-        const rawProducts = await fetchProductsBySubcategory(sub.id_subcategory);
+        const rawProducts = await fetchProductsBySubcategory(
+          sub.id_subcategory
+        );
 
         const products = mapProducts(rawProducts);
 
         // Lọc lại subcategories chỉ lấy active
-        const activeSubcategories = cat.subcategories?.filter(sub => sub.status === 'active') || [];
+        const activeSubcategories =
+          cat.subcategories?.filter((sub) => sub.status === "active") || [];
 
         return {
           products,
@@ -65,7 +75,9 @@ export const fetchProductsByCategorySlug = async (slug) => {
     // Nếu không khớp danh mục con, tìm trong danh mục cha
     const matchedParent = categories.find((cat) => cat.slug === slug);
     if (matchedParent) {
-      const activeSubcategories = matchedParent.subcategories?.filter(sub => sub.status === 'active') || [];
+      const activeSubcategories =
+        matchedParent.subcategories?.filter((sub) => sub.status === "active") ||
+        [];
 
       const subIds = activeSubcategories.map((sub) => sub.id_subcategory);
 
@@ -92,13 +104,14 @@ export const fetchProductsByCategorySlug = async (slug) => {
       };
     }
 
-    throw new Error(`Không tìm thấy danh mục hoặc danh mục con với slug = ${slug}`);
+    throw new Error(
+      `Không tìm thấy danh mục hoặc danh mục con với slug = ${slug}`
+    );
   } catch (error) {
     console.error("Lỗi khi lấy sản phẩm theo slug:", error);
     throw error;
   }
 };
-
 
 // Tiện ích định dạng sản phẩm
 export const mapProducts = (items) =>
@@ -115,7 +128,6 @@ export const mapProducts = (items) =>
     category_slug: getSlugFromCategory(item.id_category), // ✅ Add chính xác category_slug ở đây
   }));
 
-
 // Hàm phụ (tuỳ bạn xử lý sao cho đúng slug tương ứng id_category)
 const getSlugFromCategory = (id_category) => {
   const map = {
@@ -126,7 +138,6 @@ const getSlugFromCategory = (id_category) => {
   };
   return map[id_category] || "san-pham";
 };
-
 
 export const fetchProductById = async (id_product) => {
   const response = await axiosClient.get(`/products/${id_product}`);
@@ -152,8 +163,6 @@ export const mapProductDetail = (item) => ({
   createdAt: item.created_at,
   updatedAt: item.updated_at,
 });
-
-
 
 export const fetchFeaturedProducts = async () => {
   try {
@@ -185,5 +194,37 @@ export const fetchNewProducts = async () => {
   } catch (error) {
     console.error("Lỗi khi fetch new products:", error);
     return [];
+  }
+};
+
+export const fetchProductReviews = async (id_product) => {
+  try {
+    const res = await axiosClient.get(`/reviews/product/${id_product}`);
+    const payload = res?.data ?? res;
+
+    const reviewBox = payload?.reviews || {};
+    const items = Array.isArray(reviewBox?.reviews) ? reviewBox.reviews : [];
+    const count = Number(reviewBox?.count) || items.length || 0;
+    const average = Number(reviewBox?.average_rating) || 0;
+
+    return { items, count, average };
+  } catch (err) {
+    console.error("Lỗi khi lấy reviews:", err);
+    return { items: [], count: 0, average: 0 };
+  }
+};
+
+export const createProductReview = async ({ id_user, id_product, rating, content }) => {
+  try {
+    
+    const res = await axiosClient.post('/reviews', {
+      id_user,
+      id_product,
+      rating,
+      content,
+    });
+    return res?.data?.review ?? res?.data ?? null;
+  } catch (err) {
+    throw err?.response?.data || err;
   }
 };

@@ -16,13 +16,16 @@ const ProductManagement = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   const getProducts = async () => {
-    try {
-      const res = await fetchAdminProducts();
-      setProducts(res || []);
-    } catch (err) {
-      console.error("Không thể load sản phẩm:", err);
-    }
-  };
+  try {
+    const res = await fetchAdminProducts();
+    // Sắp xếp mới nhất lên đầu (theo id_product)
+    const sorted = (res || []).sort((a, b) => b.id_product - a.id_product);
+    setProducts(sorted);
+  } catch (err) {
+    console.error("Không thể load sản phẩm:", err);
+  }
+};
+
 
   useEffect(() => {
     getProducts();

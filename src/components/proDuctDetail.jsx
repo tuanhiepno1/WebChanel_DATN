@@ -1,9 +1,11 @@
-import React from "react";
-import { Row, Col, Rate, Button, Divider } from "antd";
+import React, { useEffect, useMemo, useState } from "react";
+import { Row, Col, Rate, Button, Divider, Spin, Empty, Form, Input, message, Card } from "antd";
 import {
   ShoppingCartOutlined,
   PayCircleOutlined,
   ArrowLeftOutlined,
+  LoginOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import Header from "@components/header";
 import Footer from "@components/footer";
@@ -11,20 +13,67 @@ import DiscountProducts from "@components/discountProduct";
 import { useDispatch, useSelector } from "react-redux";
 import { addToCart } from "@redux/cartSlice";
 import { useNavigate } from "react-router-dom";
+import { fetchProductReviews, createProductReview } from "@api/productApi";
+
+const { TextArea } = Input;
 
 const ProductDetailLayout = ({ product, extraInfo = [] }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
 
+  const [reviews, setReviews] = useState([]);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [averageFromApi, setAverageFromApi] = useState(0);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [form] = Form.useForm();
+
+  const productId =
+    product?.id_product ?? product?.id ?? product?._id ?? product?.productId;
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!productId) {
+        setLoadingReviews(false);
+        return;
+      }
+      try {
+        setLoadingReviews(true);
+        const { items, count, average } = await fetchProductReviews(productId);
+        if (mounted) {
+          setReviews(items);
+          setReviewCount(count);
+          setAverageFromApi(average);
+        }
+      } catch (e) {
+        // có thể log hoặc hiển thị lỗi nhẹ
+        console.error(e);
+      } finally {
+        if (mounted) setLoadingReviews(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [productId]);
+
+  const averageRating = useMemo(() => {
+    const prodRate = Number(product?.rating);
+    if (!Number.isNaN(prodRate) && prodRate > 0) return prodRate;
+    if (averageFromApi > 0) return Number(averageFromApi);
+    if (!reviews.length) return 0;
+    const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+    return Math.round((sum / reviews.length) * 10) / 10;
+  }, [product?.rating, averageFromApi, reviews]);
+
   if (!product) return <p style={{ padding: 20 }}>Sản phẩm không tồn tại.</p>;
 
   const handleAddToCart = () => {
     if (!user?.id) {
-      alert("Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng.");
+      message.warning("Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng.");
+      navigate("/login");
       return;
     }
-
     dispatch(
       addToCart({
         userId: user.id,
@@ -32,12 +81,75 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
       })
     )
       .unwrap()
-      .then(() => {
-        navigate("/gio-hang");
-      })
-      .catch((err) => {
+      .then(() => navigate("/gio-hang"))
+      .catch(() => {});
+  };
+
+  const formatDate = (iso) => {
+    try {
+      return new Date(iso).toLocaleString("vi-VN");
+    } catch {
+      return iso;
+    }
+  };
+
+  // ====== GỬI REVIEW MỚI ======
+  const onSubmitReview = async (values) => {
+    if (!user?.id) {
+      message.info("Bạn cần đăng nhập để đánh giá sản phẩm.");
+      navigate("/login");
+      return;
+    }
+    if (!productId) return;
+
+    setSubmittingReview(true);
+    try {
+      const payload = {
+        id_user: user.id,
+        id_product: productId,
+        rating: Number(values.rating),
+        content: values.content?.trim(),
+      };
+
+      const serverReview = await createProductReview(payload);
+
+      // Tạo item mới để hiển thị ngay
+      const displayName =
+        user?.fullname ||
+        [user?.firstname, user?.lastname].filter(Boolean).join(" ") ||
+        user?.name ||
+        "Bạn";
+      const newItem = {
+        id_review: serverReview?.id_review ?? `local-${Date.now()}`,
+        username: serverReview?.username ?? displayName,
+        image: serverReview?.image ?? null,
+        created_date: serverReview?.created_date ?? new Date().toISOString(),
+        rating: payload.rating,
+        content: payload.content,
+      };
+
+      setReviews((prev) => [newItem, ...prev]);
+
+      // Cập nhật count/average nhanh gọn
+      setReviewCount((c) => c + 1);
+      setAverageFromApi((prevAvg) => {
+        const c = reviewCount; // giá trị cũ trước khi +1
+        const newAvg = (prevAvg > 0 ? prevAvg : averageRating) || 0;
+        const updated = ((newAvg * c + payload.rating) / (c + 1));
+        return Math.round(updated * 10) / 10;
       });
-      
+
+      form.resetFields();
+      message.success("Đã gửi đánh giá. Cảm ơn bạn!");
+    } catch (err) {
+      const msg =
+        err?.message ||
+        err?.errors?.[0] ||
+        "Gửi đánh giá thất bại. Vui lòng thử lại!";
+      message.error(msg);
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   return (
@@ -50,6 +162,7 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
           backgroundColor: "#f5f5f5",
         }}
       >
+        {/* Nút quay lại */}
         <div style={{ maxWidth: 1200, margin: "0 auto 24px" }}>
           <Button
             icon={<ArrowLeftOutlined />}
@@ -65,6 +178,7 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
           </Button>
         </div>
 
+        {/* Thông tin sản phẩm */}
         <div style={{ display: "flex", justifyContent: "center" }}>
           <Row gutter={32} style={{ maxWidth: 1200, width: "100%" }}>
             <Col xs={24} md={10}>
@@ -103,13 +217,16 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                   width: 160,
                   marginBottom: 16,
                 }}
-              ></div>
-
-              <Rate
-                disabled
-                defaultValue={product.rating}
-                style={{ fontSize: 18, marginBottom: 8 }}
               />
+
+              {/* Điểm và số lượng review */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Rate disabled allowHalf value={Number(averageRating) || 0} />
+                <span style={{ color: "#555" }}>
+                  {averageRating ? `${averageRating}/5` : "Chưa có đánh giá"}
+                  {reviewCount ? ` · ${reviewCount} đánh giá` : ""}
+                </span>
+              </div>
 
               {extraInfo.map((item) => (
                 <p key={item.label} style={{ fontSize: 16 }}>
@@ -139,7 +256,6 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                 >
                   THÊM VÀO GIỎ HÀNG
                 </Button>
-
                 <Button
                   icon={<PayCircleOutlined />}
                   style={{
@@ -160,6 +276,7 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
 
         <Divider />
 
+        {/* Mô tả */}
         <div style={{ display: "flex", justifyContent: "center" }}>
           <div
             style={{
@@ -178,40 +295,115 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
 
         <Divider />
 
+        {/* ====== FORM ĐÁNH GIÁ ====== */}
+        <div style={{ maxWidth: 1200, margin: "0 auto 24px" }}>
+          <Card
+            title="Viết đánh giá của bạn"
+            bordered={false}
+            style={{ borderRadius: 10 }}
+            extra={
+              !user?.id && (
+                <Button
+                  type="link"
+                  icon={<LoginOutlined />}
+                  onClick={() => navigate("/login")}
+                >
+                  Đăng nhập để đánh giá
+                </Button>
+              )
+            }
+          >
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={onSubmitReview}
+              disabled={!user?.id}
+            >
+              <Form.Item
+                name="rating"
+                label="Chấm điểm"
+                rules={[{ required: true, message: "Vui lòng chọn số sao!" }]}
+              >
+                <Rate />
+              </Form.Item>
+
+              <Form.Item
+                name="content"
+                label="Nhận xét"
+                rules={[
+                  { required: true, message: "Vui lòng nhập nội dung!" },
+                  { min: 6, message: "Nội dung tối thiểu 6 ký tự" },
+                ]}
+              >
+                <TextArea rows={4} placeholder="Chia sẻ trải nghiệm của bạn..." />
+              </Form.Item>
+
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<SendOutlined />}
+                loading={submittingReview}
+                style={{ background: "#DBB671", borderColor: "#DBB671", color: "#000" }}
+              >
+                Gửi đánh giá
+              </Button>
+            </Form>
+          </Card>
+        </div>
+
+        {/* ====== DANH SÁCH REVIEW ====== */}
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <h2>Đánh giá sản phẩm</h2>
-          {[
-            /* danh sách đánh giá mẫu như trước */
-          ].map((review, index) => (
-            <div
-              key={index}
-              style={{
-                display: "flex",
-                gap: 16,
-                padding: "16px 0",
-                borderBottom: "1px solid #eee",
-                alignItems: "flex-start",
-              }}
-            >
-              <img
-                src={review.avatar}
-                alt={review.name}
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                }}
-              />
-              <div>
-                <p style={{ marginBottom: 4, fontWeight: 500 }}>
-                  {review.name}
-                </p>
-                <Rate disabled defaultValue={review.rating} />
-                <p style={{ marginTop: 8 }}>{review.comment}</p>
-              </div>
+
+          {loadingReviews ? (
+            <div style={{ padding: "16px 0" }}>
+              <Spin />
             </div>
-          ))}
+          ) : !reviews.length ? (
+            <Empty description="Chưa có đánh giá nào" />
+          ) : (
+            reviews.map((rv) => (
+              <div
+                key={rv.id_review ?? `${rv.username}-${rv.created_date}`}
+                style={{
+                  display: "flex",
+                  gap: 16,
+                  padding: "16px 0",
+                  borderBottom: "1px solid #eee",
+                  alignItems: "flex-start",
+                }}
+              >
+                {/* avatar đơn giản theo chữ cái đầu */}
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    background: "#ddd",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 600,
+                    color: "#555",
+                    flexShrink: 0,
+                  }}
+                >
+                  {(rv.username || "U").charAt(0).toUpperCase()}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <strong>{rv.username || "Người dùng"}</strong>
+                    <span style={{ color: "#999", fontSize: 12 }}>
+                      {rv.created_date ? formatDate(rv.created_date) : ""}
+                    </span>
+                  </div>
+                  <Rate disabled value={Number(rv.rating) || 0} style={{ fontSize: 16 }} />
+                  <p style={{ marginTop: 8 }}>{rv.content}</p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         <div

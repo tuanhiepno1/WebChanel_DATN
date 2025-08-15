@@ -9,7 +9,6 @@ import {
   Button,
   Row,
   Col,
-  Rate,
 } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { fetchAdminSubcategories } from "@adminApi/categoryApi";
@@ -23,7 +22,7 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
   useEffect(() => {
     const loadSubcategories = async () => {
       const data = await fetchAdminSubcategories();
-      const active = data.filter((item) => item.status === "active");
+      const active = Array.isArray(data) ? data.filter((item) => item.status === "active") : [];
       setSubcategories(active);
     };
     loadSubcategories();
@@ -34,21 +33,14 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
       const values = await form.validateFields();
       const formData = new FormData();
 
-      // Tách rõ các kiểu dữ liệu cần ép kiểu
-      const intFields = [
-        "id_category",
-        "rating",
-        "volume",
-        "quantity",
-        "views",
-      ];
+      const intFields = ["id_category", "volume", "quantity", "views"];
       const floatFields = ["price", "discount"];
 
       Object.keys(values).forEach((key) => {
         const value = values[key];
 
         if (key === "image") {
-          const file = value; // vì fileList[0] chính là file rồi
+          const file = value;
           if (file?.originFileObj) {
             formData.append("image", file.originFileObj);
           }
@@ -67,11 +59,6 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
         }
       });
 
-      // ✅ Debug check
-      for (let pair of formData.entries()) {
-        console.log(pair[0], ":", pair[1]);
-      }
-
       await onSubmit(formData);
       form.resetFields();
     } catch (err) {
@@ -87,15 +74,11 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
       title="Thêm sản phẩm"
       okText="Thêm"
       cancelText="Hủy"
-      destroyOnHidden
+      destroyOnClose
       width={1000}
       styles={{ maxHeight: "70vh", overflowY: "auto" }}
       okButtonProps={{
-        style: {
-          backgroundColor: "#DBB671",
-          borderColor: "#DBB671",
-          color: "#000",
-        },
+        style: { backgroundColor: "#DBB671", borderColor: "#DBB671", color: "#000" },
       }}
     >
       <Form layout="vertical" form={form} initialValues={{ status: "active" }}>
@@ -104,15 +87,15 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
             <Form.Item
               name="name"
               label="Tên sản phẩm"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: "Vui lòng nhập tên sản phẩm" }]}
             >
-              <Input />
+              <Input placeholder="Nhập tên sản phẩm" />
             </Form.Item>
 
             <Form.Item
               name="id_category"
               label="Danh mục"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: "Vui lòng chọn danh mục" }]}
             >
               <Select placeholder="Chọn danh mục">
                 {subcategories.map((cat) => (
@@ -123,48 +106,83 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
               </Select>
             </Form.Item>
 
-            <Form.Item name="price" label="Giá" placeholder="Nhập giá" rules={[{ required: true }]}>
-              <InputNumber style={{ width: "100%" }} />
+            <Form.Item
+              name="price"
+              label="Giá"
+              rules={[
+                { required: true, message: "Vui lòng nhập giá" },
+                { type: "number", min: 0, message: "Giá không được âm" },
+              ]}
+            >
+              <InputNumber style={{ width: "100%" }} placeholder="Nhập giá" />
             </Form.Item>
 
-            <Form.Item name="discount" label="Giảm giá (%)">
-              <InputNumber style={{ width: "100%" }} />
+            <Form.Item
+              name="discount"
+              label="Giảm giá (%)"
+              rules={[
+                { required: true, message: "Vui lòng nhập mức giảm giá" },
+                { type: "number", min: 0, message: "Giảm giá không được âm" },
+              ]}
+            >
+              <InputNumber style={{ width: "100%" }} placeholder="Nhập % giảm giá" />
             </Form.Item>
           </Col>
 
           <Col span={8}>
-            <Form.Item name="volume" label="Dung tích (ml)" placeholder="Nhập dung tích">
-              <InputNumber style={{ width: "100%" }} />
+            <Form.Item
+              name="volume"
+              label="Dung tích (ml)"
+              rules={[
+                { required: true, message: "Vui lòng nhập dung tích" },
+                { type: "number", min: 0, message: "Dung tích không được âm" },
+              ]}
+            >
+              <InputNumber style={{ width: "100%" }} placeholder="Nhập dung tích (ml)" />
             </Form.Item>
 
-            <Form.Item name="gender" label="Giới tính" placeholder="Chọn giới tính">
-              <Select>
+            <Form.Item
+              name="gender"
+              label="Giới tính"
+              rules={[{ required: true, message: "Vui lòng chọn giới tính" }]}
+            >
+              <Select placeholder="Chọn giới tính">
                 <Option value="male">Nam</Option>
                 <Option value="female">Nữ</Option>
                 <Option value="unisex">Unisex</Option>
               </Select>
             </Form.Item>
 
-            <Form.Item name="type" label="Loại" placeholder="Nhập loại sản phẩm">
-              <Input />
+            <Form.Item
+              name="type"
+              label="Loại"
+              rules={[{ required: true, message: "Vui lòng nhập loại sản phẩm" }]}
+            >
+              <Input placeholder="Nhập loại sản phẩm" />
             </Form.Item>
 
-            <Form.Item name="quantity" label="Tồn kho" placeholder="Nhập số lượng tồn kho" rules={[{ required: true, message: "Vui lòng nhập số lượng" }]}>
-              <InputNumber style={{ width: "100%" }} />
+            <Form.Item
+              name="quantity"
+              label="Tồn kho"
+              rules={[
+                { required: true, message: "Vui lòng nhập số lượng tồn kho" },
+                { type: "number", min: 0, message: "Tồn kho không được âm" },
+              ]}
+            >
+              <InputNumber style={{ width: "100%" }} placeholder="Nhập số lượng tồn kho" />
             </Form.Item>
           </Col>
 
           <Col span={8}>
-            <Form.Item name="views" label="Lượt xem" placeholder="Nhập số lượt xem">
-              <InputNumber style={{ width: "100%" }} />
-            </Form.Item>
-
             <Form.Item
-              name="rating"
-              label="Đánh giá"
-              rules={[{ required: true, message: "Vui lòng chọn đánh giá" }]}
+              name="views"
+              label="Lượt xem"
+              rules={[
+                { required: true, message: "Vui lòng nhập lượt xem" },
+                { type: "number", min: 0, message: "Lượt xem không được âm" },
+              ]}
             >
-              <Rate count={5} allowClear={false} />
+              <InputNumber style={{ width: "100%" }} placeholder="Nhập số lượt xem" />
             </Form.Item>
 
             <Form.Item
@@ -172,7 +190,7 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
               label="Trạng thái"
               rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
             >
-              <Select>
+              <Select placeholder="Chọn trạng thái">
                 <Option value="active">Hoạt động</Option>
                 <Option value="inactive">Không hoạt động</Option>
               </Select>
@@ -184,7 +202,7 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
               valuePropName="file"
               getValueFromEvent={(e) => {
                 if (Array.isArray(e)) return e;
-                return e?.fileList[0];
+                return e?.fileList?.[0];
               }}
               rules={[{ required: true, message: "Vui lòng chọn hình ảnh" }]}
             >
@@ -195,12 +213,16 @@ const AddProductModal = ({ visible, onCancel, onSubmit }) => {
           </Col>
 
           <Col span={24}>
-            <Form.Item name="description" label="Mô tả" rules={[{ required: true, message: "Vui lòng nhập mô tả" }]}>
-              <Input.TextArea rows={3} />
+            <Form.Item
+              name="description"
+              label="Mô tả"
+              rules={[{ required: true, message: "Vui lòng nhập mô tả" }]}
+            >
+              <Input.TextArea rows={3} placeholder="Nhập mô tả sản phẩm" />
             </Form.Item>
 
-            <Form.Item name="note" label="Ghi chú" rules={[{ required: false }]}>
-              <Input.TextArea rows={2} />
+            <Form.Item name="note" label="Ghi chú">
+              <Input.TextArea rows={2} placeholder="(Không bắt buộc)" />
             </Form.Item>
           </Col>
         </Row>
