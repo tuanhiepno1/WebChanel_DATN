@@ -1,12 +1,27 @@
+// DiscountProducts.jsx
 import React, { useEffect, useState } from "react";
 import { Card, Button, Tag } from "antd";
 import Slider from "react-slick";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+
 import { fetchFeaturedProducts } from "@api/productApi";
 
-// Custom Arrow Base Style
+const slugify = (str) =>
+  (str || "unknown")
+    .toString()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+
+const getProductId = (p) => p?.id ?? p?.id_product ?? p?._id ?? p?.productId;
+const getCategorySlug = (p) =>
+  p?.category_slug || slugify(p?.category_name || p?.category || "san-pham");
+
+// ===== Arrows =====
 const arrowBaseStyle = {
   background: "black",
   color: "white",
@@ -24,132 +39,143 @@ const arrowBaseStyle = {
   top: "45%",
 };
 
-// Arrow Components
 const PrevArrow = ({ onClick }) => (
-  <div
-    onClick={onClick}
-    style={{ ...arrowBaseStyle, left: 10 }}
-  >
+  <div onClick={onClick} style={{ ...arrowBaseStyle, left: 10 }}>
     <LeftOutlined />
   </div>
 );
 
 const NextArrow = ({ onClick }) => (
-  <div
-    onClick={onClick}
-    style={{ ...arrowBaseStyle, right: 10 }}
-  >
+  <div onClick={onClick} style={{ ...arrowBaseStyle, right: 10 }}>
     <RightOutlined />
   </div>
 );
 
-// Product Card Component
-const ProductCard = ({ product }) => (
-  <Card
-    hoverable
-    style={{
-      width: "97%",
-      borderRadius: 10,
-      position: "relative",
-      margin: "12px auto",
-      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-      transition: "transform 0.3s, box-shadow 0.3s",
-      textAlign: "center",
-    }}
-    styles={{
-      body: {
-        padding: 16,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        alignItems: "center",
-      },
-    }}
-    cover={
-      <img
-        alt={product.name}
-        src={
-          product.image.startsWith("http")
-            ? product.image
-            : `http://localhost:8000/storage/${product.image}`
-        }
-        style={{
-          padding: 24,
-          height: 250,
-          objectFit: "contain",
-          transition: "transform 0.3s",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-      />
-    }
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = "scale(1.02)";
-      e.currentTarget.style.boxShadow = "0 8px 16px rgba(0, 0, 0, 0.15)";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = "scale(1)";
-      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1)";
-    }}
-  >
-    <Tag color="red" style={{ position: "absolute", top: 10, left: 10 }}>
-      {product.discount || "HOT"}
-    </Tag>
+// ===== Card =====
+const ProductCard = ({ product }) => {
+  const navigate = useNavigate();
 
-    <h4
-      style={{
-        height: 48,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        display: "-webkit-box",
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: "vertical",
-        marginBottom: 8,
-      }}
-    >
-      {product.name}
-    </h4>
+  const handleViewDetail = () => {
+    const id = getProductId(product);
+    const slug = getCategorySlug(product);
+    if (!id) return;
+    navigate(`/category/${slug}/${id}`);
+  };
 
-    <p
+  return (
+    <Card
+      hoverable
       style={{
-        fontWeight: "bold",
-        color: "#D0021B",
-        fontSize: 16,
-        marginBottom: 16,
+        width: "97%",
+        borderRadius: 10,
+        position: "relative",
+        margin: "12px auto",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+        transition: "transform 0.3s, box-shadow 0.3s",
+        textAlign: "center",
       }}
-    >
-      {Number(product.price).toLocaleString("vi-VN")}₫
-    </p>
-
-    <Button
-      type="primary"
-      style={{
-        background: "#D6B160",
-        border: "none",
-        transition: "all 0.3s",
+      styles={{
+        body: {
+          padding: 16,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          alignItems: "center",
+        },
       }}
+      cover={
+        <img
+          alt={product.name}
+          src={
+            product.image?.startsWith?.("http")
+              ? product.image
+              : `http://localhost:8000/storage/${product.image}`
+          }
+          style={{
+            padding: 24,
+            height: 250,
+            objectFit: "contain",
+            transition: "transform 0.3s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          onClick={handleViewDetail} // click ảnh mở chi tiết (tuỳ chọn)
+          role="button"
+        />
+      }
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = "#b4944a";
-        e.currentTarget.style.transform = "scale(1.05)";
+        e.currentTarget.style.transform = "scale(1.02)";
+        e.currentTarget.style.boxShadow = "0 8px 16px rgba(0, 0, 0, 0.15)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = "#D6B160";
         e.currentTarget.style.transform = "scale(1)";
+        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1)";
       }}
+      onClick={handleViewDetail} // click card mở chi tiết (tuỳ chọn)
     >
-      XEM CHI TIẾT
-    </Button>
-  </Card>
-);
+      <Tag color="red" style={{ position: "absolute", top: 10, left: 10 }}>
+        {product.discount || "HOT"}
+      </Tag>
 
-// Main Discount Product Slider
+      <h4
+        style={{
+          height: 48,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          marginBottom: 8,
+        }}
+      >
+        {product.name}
+      </h4>
+
+      <p
+        style={{
+          fontWeight: "bold",
+          color: "#D0021B",
+          fontSize: 16,
+          marginBottom: 16,
+        }}
+      >
+        {Number(product.price).toLocaleString("vi-VN")}₫
+      </p>
+
+      <Button
+        type="primary"
+        style={{
+          background: "#D6B160",
+          border: "none",
+          transition: "all 0.3s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "#b4944a";
+          e.currentTarget.style.transform = "scale(1.05)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "#D6B160";
+          e.currentTarget.style.transform = "scale(1)";
+        }}
+        onClick={(e) => {
+          e.stopPropagation(); // tránh click trúng Card
+          handleViewDetail();
+        }}
+      >
+        XEM CHI TIẾT
+      </Button>
+    </Card>
+  );
+};
+
+// ===== Main =====
 const DiscountProducts = () => {
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
     const load = async () => {
       const data = await fetchFeaturedProducts();
-      setProducts(data);
+      setProducts(Array.isArray(data) ? data : []);
     };
     load();
   }, []);
@@ -176,7 +202,7 @@ const DiscountProducts = () => {
       <div style={{ padding: "0 20px", position: "relative" }}>
         <Slider {...settings}>
           {products.map((product, index) => (
-            <div key={product.id || `product-${index}`}>
+            <div key={product.id || product.id_product || `product-${index}`}>
               <ProductCard product={product} />
             </div>
           ))}

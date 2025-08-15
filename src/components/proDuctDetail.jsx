@@ -16,7 +16,6 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
-  console.log("👤 user từ Redux sau F5:", user); // 🔑 lấy userId
 
   if (!product) return <p style={{ padding: 20 }}>Sản phẩm không tồn tại.</p>;
 
@@ -37,9 +36,8 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
         navigate("/gio-hang");
       })
       .catch((err) => {
-        console.error("❌ Lỗi thêm vào giỏ hàng:", err);
       });
-      console.log("🧪 user từ Redux:", user);
+      
   };
 
   return (

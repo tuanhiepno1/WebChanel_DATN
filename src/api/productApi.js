@@ -173,8 +173,15 @@ export const fetchFeaturedProducts = async () => {
 
 export const fetchNewProducts = async () => {
   try {
-    const response = await axiosClient.get("/new-products");
-    return response.data.slice(0, 10);
+    const res = await axiosClient.get("/new-products");
+    // res.data có dạng { status: "success", data: [...] }
+    const items = Array.isArray(res?.data)
+      ? res.data
+      : Array.isArray(res?.data?.data)
+      ? res.data.data
+      : [];
+
+    return items.slice(0, 10);
   } catch (error) {
     console.error("Lỗi khi fetch new products:", error);
     return [];

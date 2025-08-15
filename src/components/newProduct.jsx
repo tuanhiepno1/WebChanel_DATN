@@ -1,31 +1,29 @@
-import React from "react";
-import { Card, Button, Tag } from "antd";
+// NewProducts.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import { Card, Button, Tag, Skeleton, Empty, message } from "antd";
 import Slider from "react-slick";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-import disc1 from "@assets/images/disc1.png";
-import disc2 from "@assets/images/disc2.png";
-import disc3 from "@assets/images/disc3.png";
-import disc4 from "@assets/images/disc4.png";
-import disc5 from "@assets/images/disc5.png";
-import disc6 from "@assets/images/disc6.png";
-import disc7 from "@assets/images/disc7.png";
-import disc8 from "@assets/images/disc8.png";
+import { fetchNewProducts } from "@api/productApi"; 
+import fallbackImg from "@assets/images/Cart.png";
 
-const products = [
-  { id: 1, name: "BLEU DE CHANEL", discount: "New", price: "3.450.000 VNĐ", image: disc1 },
-  { id: 2, name: "N°5", discount: "New", price: "3.580.000 VNĐ", image: disc2 },
-  { id: 3, name: "COCO", discount: "New", price: "3.440.000 VNĐ", image: disc3 },
-  { id: 4, name: "N°19", discount: "New", price: "3.330.000 VNĐ", image: disc4 },
-  { id: 5, name: "CHANCE EAU TENDRE", discount: "New", price: "3.650.000 VNĐ", image: disc5 },
-  { id: 6, name: "ROUGE ALLURE", discount: "New", price: "1.250.000 VNĐ", image: disc6 },
-  { id: 7, name: "SUBLIMAGE L’ESSENCE", discount: "New", price: "5.850.000 VNĐ", image: disc7 },
-  { id: 8, name: "HYDRA BEAUTY", discount: "New", price: "2.980.000 VNĐ", image: disc8 },
-];
 
-// Arrow style giống DiscountProducts
+const slugify = (str) =>
+  (str || "unknown")
+    .toString()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+
+const getProductId = (p) => p?.id ?? p?.id_product ?? p?._id ?? p?.productId;
+const getCategorySlug = (p) =>
+  p?.category_slug || slugify(p?.category_name || p?.category || "san-pham");
+
+
 const arrowBaseStyle = {
   background: "black",
   color: "white",
@@ -55,8 +53,44 @@ const NextArrow = ({ onClick }) => (
   </div>
 );
 
-// Product Card giống DiscountProducts
-const ProductCard = ({ product }) => (
+// ===== Normalize API item -> UI model =====
+const normalizeProduct = (item) => {
+  const id = item.id_product ?? item.id ?? item._id ?? item.productId;
+  const name = item.name ?? item.productName ?? "Sản phẩm";
+  const price =
+    item.price != null
+      ? Number(item.price)
+      : item.salePrice != null
+      ? Number(item.salePrice)
+      : null;
+
+  const image =
+    item.image ??
+    item.thumbnail ??
+    item.imageUrl ??
+    (Array.isArray(item.images) && item.images[0]) ??
+    fallbackImg;
+
+  return {
+    id,
+    name,
+    price,
+    image,
+    discount: "New",
+    slug: item.slug, // nếu có
+    category_slug: item.category_slug,
+    category_name: item.category_name,
+    category: item.category,
+  };
+};
+
+const currencyVN = (vnd) =>
+  typeof vnd === "number"
+    ? vnd.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
+    : "—";
+
+// ===== Card =====
+const ProductCard = ({ product, onViewDetail }) => (
   <Card
     hoverable
     style={{
@@ -87,8 +121,13 @@ const ProductCard = ({ product }) => (
           objectFit: "contain",
           transition: "transform 0.3s",
         }}
+        onError={(e) => {
+          e.currentTarget.src = fallbackImg;
+        }}
         onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
         onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        onClick={() => onViewDetail(product)} // click ảnh mở chi tiết (tuỳ chọn)
+        role="button"
       />
     }
     onMouseEnter={(e) => {
@@ -114,12 +153,13 @@ const ProductCard = ({ product }) => (
         WebkitBoxOrient: "vertical",
         marginBottom: 8,
       }}
+      title={product.name}
     >
       {product.name}
     </h4>
 
     <p style={{ fontWeight: "bold", color: "#D0021B", fontSize: 16, marginBottom: 16 }}>
-      {product.price}
+      {currencyVN(product.price)}
     </p>
 
     <Button
@@ -133,40 +173,95 @@ const ProductCard = ({ product }) => (
         e.currentTarget.style.background = "#D6B160";
         e.currentTarget.style.transform = "scale(1)";
       }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onViewDetail(product);
+      }}
     >
       XEM CHI TIẾT
     </Button>
   </Card>
 );
 
+// ===== Main =====
 const NewProducts = () => {
-  const settings = {
-    dots: false,
-    infinite: true,
-    speed: 600,
-    slidesToShow: 4,
-    slidesToScroll: 1,
-    arrows: true,
-    nextArrow: <NextArrow />,
-    prevArrow: <PrevArrow />,
-    responsive: [
-      { breakpoint: 1200, settings: { slidesToShow: 3 } },
-      { breakpoint: 900, settings: { slidesToShow: 2 } },
-      { breakpoint: 600, settings: { slidesToShow: 1 } },
-    ],
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [list, setList] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetchNewProducts();
+        const normalized = Array.isArray(res) ? res.map(normalizeProduct) : [];
+        if (mounted) setList(normalized);
+      } catch (e) {
+        setError("Không thể tải danh sách sản phẩm mới.");
+        message.error("Tải sản phẩm mới thất bại!");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const settings = useMemo(
+    () => ({
+      dots: false,
+      infinite: true,
+      speed: 600,
+      slidesToShow: 4,
+      slidesToScroll: 1,
+      arrows: true,
+      nextArrow: <NextArrow />,
+      prevArrow: <PrevArrow />,
+      responsive: [
+        { breakpoint: 1200, settings: { slidesToShow: 3 } },
+        { breakpoint: 900, settings: { slidesToShow: 2 } },
+        { breakpoint: 600, settings: { slidesToShow: 1 } },
+      ],
+    }),
+    []
+  );
+
+  const onViewDetail = (product) => {
+    const id = getProductId(product);
+    const slug = getCategorySlug(product);
+    if (!id) return;
+    navigate(`/category/${slug}/${id}`);
   };
 
   return (
     <div style={{ padding: "40px 0", position: "relative" }}>
       <h2 style={{ textAlign: "center", marginBottom: 12 }}>SẢN PHẨM MỚI</h2>
       <div style={{ padding: "0 20px", position: "relative" }}>
-        <Slider {...settings}>
-          {products.map((product) => (
-            <div key={product.id}>
-              <ProductCard product={product} />
-            </div>
-          ))}
-        </Slider>
+        {loading ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} style={{ borderRadius: 10 }}>
+                <Skeleton.Image active style={{ width: "100%", height: 250 }} />
+                <Skeleton active paragraph={{ rows: 2 }} style={{ marginTop: 12 }} />
+              </Card>
+            ))}
+          </div>
+        ) : error ? (
+          <Empty description={error} />
+        ) : list.length === 0 ? (
+          <Empty description="Chưa có sản phẩm mới." />
+        ) : (
+          <Slider {...settings}>
+            {list.map((product) => (
+              <div key={product.id || product.id_product}>
+                <ProductCard product={product} onViewDetail={onViewDetail} />
+              </div>
+            ))}
+          </Slider>
+        )}
       </div>
     </div>
   );

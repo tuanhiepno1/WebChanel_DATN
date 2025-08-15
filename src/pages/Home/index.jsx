@@ -18,8 +18,8 @@ import cate1 from "@assets/images/cate1.png";
 import cate2 from "@assets/images/cate2.jpg";
 import cate3 from "@assets/images/cate3.jpg";
 import cate4 from "@assets/images/cate4.jpg";
-import news1 from "@assets/images/news1.jpg";
-import news2 from "@assets/images/news2.jpg";
+import news1 from "@assets/images/news1.png";
+import news2 from "@assets/images/news2.png";
 import boSuuTap from "@assets/images/bosuutap6.png";
 
 const { Content } = Layout;

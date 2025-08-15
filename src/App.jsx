@@ -14,6 +14,8 @@ import CategoryPage from "@pages/Category/CategoryPage";
 import ProductDetailPage from "@pages/ProductDetail/ProductDetailPage";
 import CartPage from "@pages/Cart/CartPage";
 import OrderDetailPage from "@pages/OrderDetail/OrderDetailPage";
+import NewsPage from "@pages/NewsPage/NewsPage";
+import ContactPage from "@pages/ContactPage/ContactPage";
 import endPoints from "@routes/router";
 import RequireAdminAuth from "@admin/routes/RequireAdminAuth";
 import AdminRoutes from "@admin/routes/AdminRoutes";
@@ -28,7 +30,6 @@ const App = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    console.log("🧪 USER SAU RESTORE:", user);
   }, [user]);
 
   useEffect(() => {
@@ -133,6 +134,22 @@ const App = () => {
           element={
             <MainLayout>
               <OrderDetailPage />
+            </MainLayout>
+          }
+        />
+        <Route
+          path={endPoints.TINTUC}
+          element={
+            <MainLayout>
+              <NewsPage />
+            </MainLayout>
+          }
+        />
+        <Route
+          path={endPoints.LIENHE}
+          element={
+            <MainLayout>
+              <ContactPage />
             </MainLayout>
           }
         />

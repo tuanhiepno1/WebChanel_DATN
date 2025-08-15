@@ -17,6 +17,7 @@ const { Content } = Layout;
 const CategoryPage = () => {
   const { slug } = useParams();
   const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // ★ gốc để reset
   const [category, setCategory] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,8 +31,7 @@ const CategoryPage = () => {
 
         const rawCategory = res?.category || {};
         const activeSubcategories =
-          rawCategory.subcategories?.filter((sub) => sub.status === "active") ||
-          [];
+          rawCategory.subcategories?.filter((sub) => sub.status === "active") || [];
 
         const safeCategory = {
           ...rawCategory,
@@ -39,6 +39,7 @@ const CategoryPage = () => {
         };
 
         setProducts(safeProducts);
+        setAllProducts(safeProducts); // ★ lưu bản đầy đủ để reset
         setCategory(safeCategory);
       } catch (err) {
         console.error("Lỗi khi load danh mục:", err);
@@ -51,6 +52,12 @@ const CategoryPage = () => {
   }, [slug]);
 
   const handleFilterBySubcategory = async (id_subcategory) => {
+    // ★ nếu không truyền id (null/undefined) thì reset về full list
+    if (!id_subcategory) {
+      setProducts(allProducts);
+      return;
+    }
+
     setLoading(true);
     try {
       const subProducts = await fetchProductsBySubcategory(id_subcategory);
@@ -66,21 +73,18 @@ const CategoryPage = () => {
     }
   };
 
+  const handleResetFilters = () => {
+    // ★ dùng riêng cho nút “Bỏ lọc”
+    setProducts(allProducts);
+  };
+
   return (
     <Layout>
       <HeaderComponent />
-      <Content
-        style={{ padding: "0 24px", minHeight: "100vh", margin: "20px 0" }}
-      >
+      <Content style={{ padding: "0 24px", minHeight: "100vh", margin: "20px 0" }}>
         <Row gutter={[20, 20]} wrap>
           {/* Sidebar trái */}
-          <Col
-            xs={24}
-            md={6}
-            style={{
-              width: "100%",
-            }}
-          >
+          <Col xs={24} md={6} style={{ width: "100%" }}>
             {loading ? (
               <Skeleton active title={{ width: 150 }} paragraph={{ rows: 6 }} />
             ) : (
@@ -94,6 +98,7 @@ const CategoryPage = () => {
                   categories={category?.subcategories || []}
                   featuredProducts={products.slice(0, 5)}
                   onSubcategoryClick={handleFilterBySubcategory}
+                  onResetFilters={handleResetFilters} // ★ truyền xuống
                 />
               </motion.div>
             )}
