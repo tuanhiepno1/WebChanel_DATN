@@ -209,7 +209,7 @@ const CategoryManagement = () => {
         payload.category_image = editingCategory.category_image;
       }
 
-      console.log("== Payload gửi đi:", payload);
+  
 
       // ⚠️ Nếu không có gì thay đổi thì không gọi API
       if (Object.keys(payload).length === 0) {
