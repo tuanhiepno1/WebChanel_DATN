@@ -15,13 +15,15 @@ import backgroundImage from "@assets/images/chanel login5.jpg";
 import logo from "@assets/images/logo2.jpg";
 
 const Register = () => {
+  const [form] = Form.useForm();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading } = useSelector((state) => state.auth);
 
   const onFinish = async (values) => {
     try {
-      const payload = { ...values };
+      // loại confirmPassword trước khi gửi
+      const { confirmPassword, ...payload } = values;
 
       console.log("👉 Payload gửi lên đăng ký:", payload);
 
@@ -67,11 +69,7 @@ const Register = () => {
           }}
           onClick={() => navigate(endPoints.ALL)}
         >
-          <img
-            src={logo}
-            alt="Logo"
-            style={{ maxWidth: "70%", maxHeight: "70%" }}
-          />
+          <img src={logo} alt="Logo" style={{ maxWidth: "70%", maxHeight: "70%" }} />
         </div>
 
         <div
@@ -97,7 +95,7 @@ const Register = () => {
             </div>
           </div>
 
-          <Form layout="vertical" onFinish={onFinish}>
+          <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
             <div style={{ display: "flex", gap: 16 }}>
               <Form.Item
                 label="Họ"
@@ -132,9 +130,7 @@ const Register = () => {
             <Form.Item
               label="Số điện thoại"
               name="phone"
-              rules={[
-                { required: true, message: "Vui lòng nhập số điện thoại!" },
-              ]}
+              rules={[{ required: true, message: "Vui lòng nhập số điện thoại!" }]}
             >
               <Input placeholder="Số điện thoại" prefix={<PhoneOutlined />} />
             </Form.Item>
@@ -154,11 +150,30 @@ const Register = () => {
                 { required: true, message: "Vui lòng nhập mật khẩu" },
                 { min: 6, message: "Mật khẩu ít nhất 6 ký tự" },
               ]}
+              hasFeedback
             >
-              <Input.Password
-                placeholder="Mật khẩu"
-                prefix={<LockOutlined />}
-              />
+              <Input.Password placeholder="Mật khẩu" prefix={<LockOutlined />} />
+            </Form.Item>
+
+            {/* Confirm password */}
+            <Form.Item
+              label="Xác nhận mật khẩu"
+              name="confirmPassword"
+              dependencies={["password"]}
+              hasFeedback
+              rules={[
+                { required: true, message: "Vui lòng xác nhận mật khẩu" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue("password") === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error("Mật khẩu xác nhận không khớp"));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password placeholder="Nhập lại mật khẩu" prefix={<LockOutlined />} />
             </Form.Item>
 
             <div style={{ fontSize: 12, marginBottom: 12, color: "#555" }}>
