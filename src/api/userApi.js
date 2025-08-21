@@ -71,6 +71,15 @@ export const updateUser = async (id, updatedData) => {
   return response.data;
 };
 
+export const changeUserPassword = async (idUser, payload) => {
+  const res = await axiosClient.put(`/users/${idUser}/password`, {
+    old_password: payload.old_password,
+    new_password: payload.new_password,
+    confirm_password: payload.confirm_password,
+  });
+  return res.data;
+};
+
 
 
 // Gửi email và mã code

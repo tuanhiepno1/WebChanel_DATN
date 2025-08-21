@@ -58,7 +58,6 @@ const OrderDetailPage = () => {
     }
   }, [order?.status]);
 
-  // ----- Chuẩn bị dữ liệu VietQR (không dùng hook) -----
   const isVietQR = order?.payment_method === "vietqr";
 
   const embeddedCode = extractPaymentCode(order?.address);
@@ -165,72 +164,6 @@ const OrderDetailPage = () => {
             </Descriptions.Item>
           </Descriptions>
 
-          {/* {isVietQR && (
-            <>
-              <h3 style={{ marginTop: 24 }}>Thanh toán VietQR</h3>
-
-              {!paymentCode ? (
-                <Alert
-                  type="warning"
-                  showIcon
-                  message="Không tìm thấy mã nội dung chuyển khoản"
-                  description="Vui lòng kiểm tra lại phần địa chỉ trong đơn (có chứa 'MÃ CK: <CODE>') hoặc liên hệ hỗ trợ."
-                  style={{ marginBottom: 16 }}
-                />
-              ) : (
-                <Card size="small" style={{ marginTop: 8, marginBottom: 16 }}>
-                  <Space
-                    align="center"
-                    style={{ width: "100%", justifyContent: "space-between", gap: 16 }}
-                  >
-                    <div>
-                      <div style={{ marginBottom: 6 }}>
-                        <Text>Mã nội dung CK:&nbsp;</Text>
-                        <Text strong>{paymentCode}</Text>
-                        <Button
-                          size="small"
-                          style={{ marginLeft: 8 }}
-                          onClick={() => navigator.clipboard.writeText(paymentCode)}
-                        >
-                          Sao chép
-                        </Button>
-                      </div>
-                      <div>
-                        <Text>Số tiền cần chuyển:&nbsp;</Text>
-                        <Text strong>{amountForQR.toLocaleString()}₫</Text>
-                      </div>
-                      <div style={{ marginTop: 8, maxWidth: 520 }}>
-                        <Alert
-                          type="info"
-                          showIcon
-                          message="Lưu ý"
-                          description="Vui lòng chuyển khoản đúng số tiền và nhập chính xác 'Mã nội dung CK' ở trên để hệ thống dễ đối soát."
-                        />
-                      </div>
-                    </div>
-
-                    {vietqrUrl ? (
-                      <Image
-                        src={vietqrUrl}
-                        alt="VietQR"
-                        width={180}
-                        preview={false}
-                        style={{ borderRadius: 8 }}
-                      />
-                    ) : (
-                      <Alert
-                        type="error"
-                        showIcon
-                        message="Không tạo được ảnh QR"
-                        description="Thiếu số tiền hoặc mã nội dung CK không hợp lệ."
-                        style={{ minWidth: 220 }}
-                      />
-                    )}
-                  </Space>
-                </Card>
-              )}
-            </>
-          )} */}
 
           <h3 style={{ marginTop: 24 }}>Danh sách sản phẩm</h3>
           <Table

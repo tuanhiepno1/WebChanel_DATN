@@ -41,9 +41,9 @@ const UserProfile = () => {
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
 
   const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-  const canCancel = (status) => {
-    return ["ordered", "preparing"].includes(status);
-  };
+
+  // ✅ Chỉ được hủy khi trạng thái là 'ordered'
+  const canCancel = (status) => status === "ordered";
 
   const getOrderTag = (status) => {
     const tagInfo = ORDER_STATUS[status];
@@ -80,6 +80,11 @@ const UserProfile = () => {
   }, [user?.id_user]);
 
   const handleCancelOrder = (order) => {
+    if (!canCancel(order.status)) {
+      message.warning("Chỉ được hủy khi đơn đang ở trạng thái 'Đã đặt hàng'.");
+      return;
+    }
+
     const notesRef = { current: "" };
 
     Modal.confirm({
@@ -101,9 +106,10 @@ const UserProfile = () => {
             notes: notesRef.current || "Customer requested cancellation",
           });
           message.success(`Đã hủy đơn #${order.id_order}`);
+          // ✅ Cập nhật lại local state về 'cancelled' (không dùng 'cart')
           setOrderHistory((prev) =>
             prev.map((o) =>
-              o.id_order === order.id_order ? { ...o, status: "cart" } : o
+              o.id_order === order.id_order ? { ...o, status: "cancelled" } : o
             )
           );
         } catch (err) {
@@ -229,7 +235,7 @@ const UserProfile = () => {
             </Row>
           </Card>
 
-          {/* Đơn hàng đã đặt */}
+          {/* Lịch sử đơn hàng */}
           <Card
             title={
               <span>
@@ -263,6 +269,7 @@ const UserProfile = () => {
                           Tổng: {formatCurrency(order.total)}
                         </Text>
 
+                        {/* ✅ Chỉ hiển thị nút Hủy khi trạng thái là 'ordered' */}
                         {canCancel(order.status) && (
                           <Button
                             danger
@@ -336,7 +343,7 @@ const UserProfile = () => {
           <ChangePasswordModal
             visible={changePasswordVisible}
             onCancel={() => setChangePasswordVisible(false)}
-            email={user.email}
+            userId={user.id_user}
           />
         </div>
       </div>

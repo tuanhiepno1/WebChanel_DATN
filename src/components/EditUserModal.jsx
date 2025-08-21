@@ -4,7 +4,6 @@ import { UploadOutlined } from "@ant-design/icons";
 import { useDispatch } from "react-redux";
 import { updateUser as updateUserApi } from "@api/userApi";
 import { updateUserInfo } from "@features/authSlice";
-import { image } from "framer-motion/client";
 
 const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
   const [form] = Form.useForm();
@@ -13,14 +12,14 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
 
   useEffect(() => {
     if (visible && user) {
+      // Prefill TẤT CẢ các field mà API yêu cầu, kể cả email (dù disabled)
       form.setFieldsValue({
-        username: user?.username,
-        email: user?.email,
-        phone: user?.phone,
-        address: user?.address,
-        newPassword: "",
+        username: user?.username || "",
+        email: user?.email || "",
+        phone: user?.phone || "",
+        address: user?.address || "",
       });
-      setAvatarFile(null); // reset file khi mở modal
+      setAvatarFile(null);
     }
   }, [visible, user, form]);
 
@@ -30,27 +29,25 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
       return;
     }
 
-    const updatedPayload = {
-      username: values.username,
-      email: values.email,
-      phone: values.phone,
-      address: values.address,
-      avatar: avatarFile,
+    // Payload đúng theo API: username, email, phone, address (+ avatar nếu có)
+    const payload = {
+      username: values.username ?? user.username,
+      email: values.email ?? user.email,        // email vẫn được gửi, là giá trị cũ
+      phone: values.phone ?? user.phone,
+      address: values.address ?? user.address,
+      // avatar chỉ append khi có file mới
+      ...(avatarFile ? { avatar: avatarFile } : {}),
     };
 
-    if (values.newPassword) {
-      updatedPayload.password = values.newPassword;
-    }
-
     try {
-      const response = await updateUserApi(user.id_user, updatedPayload);
-      dispatch(updateUserInfo(response.user));
-      
+      const response = await updateUserApi(user.id_user, payload);
+
+      // Chuẩn hoá URL ảnh đại diện nếu BE trả path tương đối
       const userWithFullImage = {
         ...response.user,
-        image: response.user.image?.startsWith("http")
+        image: response.user?.image?.startsWith("http")
           ? response.user.image
-          : `${import.meta.env.VITE_ASSET_BASE_URL}${response.user.image}`,
+          : `${import.meta.env.VITE_ASSET_BASE_URL}${response.user?.image || ""}`,
       };
       dispatch(updateUserInfo(userWithFullImage));
 
@@ -58,10 +55,11 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
       onClose();
       onSuccess?.();
     } catch (error) {
-      const errorData = error.response?.data;
+      const errorData = error?.response?.data;
       const errMsg =
         errorData?.message ||
-        errorData?.errors?.[Object.keys(errorData.errors || {})[0]]?.[0] ||
+        (errorData?.errors &&
+          errorData.errors[Object.keys(errorData.errors)[0]]?.[0]) ||
         "Cập nhật thất bại";
       message.error(errMsg);
     }
@@ -75,11 +73,7 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
       onOk={() => form.submit()}
       okText="Lưu"
       okButtonProps={{
-        style: {
-          backgroundColor: "#DBB671",
-          borderColor: "#DBB671",
-          color: "#000",
-        },
+        style: { backgroundColor: "#DBB671", borderColor: "#DBB671", color: "#000" },
       }}
     >
       <Form form={form} layout="vertical" onFinish={handleFinish}>
@@ -91,14 +85,11 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
           <Input />
         </Form.Item>
 
-        <Form.Item
-          label="Email"
-          name="email"
-          rules={[
-            { required: true, type: "email", message: "Email không hợp lệ" },
-          ]}
+        {/* Email: hiển thị nhưng không cho sửa, vẫn có name để submit giá trị cũ */}
+        <Form.Item label="Email" name="email"
+          rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}
         >
-          <Input />
+          <Input disabled />
         </Form.Item>
 
         <Form.Item
@@ -106,10 +97,7 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
           name="phone"
           rules={[
             { required: true, message: "Vui lòng nhập số điện thoại" },
-            {
-              pattern: /^[0-9]+$/,
-              message: "Số điện thoại chỉ được chứa số",
-            },
+            { pattern: /^[0-9]+$/, message: "Số điện thoại chỉ được chứa số" },
           ]}
         >
           <Input />
@@ -123,12 +111,10 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
           <Input.TextArea />
         </Form.Item>
 
+        {/* KHÔNG có form đổi mật khẩu ở đây */}
         <Form.Item label="Ảnh đại diện">
           <Upload
-            beforeUpload={(file) => {
-              setAvatarFile(file);
-              return false;
-            }}
+            beforeUpload={(file) => { setAvatarFile(file); return false; }}
             maxCount={1}
           >
             <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
