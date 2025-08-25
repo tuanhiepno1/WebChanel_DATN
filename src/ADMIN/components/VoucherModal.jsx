@@ -122,7 +122,7 @@ const VoucherModal = ({ visible, onCancel, onSubmit, voucher }) => {
             <Form.Item
               label="Đơn tối thiểu"
               name="min_order_amount"
-              rules={[{ required: true, message: "Nhập số tiền tối thiểu" }]}
+              rules={[{ required: true, message: "Nhập số tiền đơn tối thiểu" }]}
             >
               <InputNumber min={0} style={{ width: "100%" }} />
             </Form.Item>
@@ -132,7 +132,7 @@ const VoucherModal = ({ visible, onCancel, onSubmit, voucher }) => {
             <Form.Item
               label="Giảm tối đa"
               name="max_discount_amount"
-              rules={[{ required: true, message: "Nhập số tiền giảm tối đa" }]}
+              rules={[{ message: "Nhập số tiền giảm tối đa" }]}
             >
               <InputNumber min={0} style={{ width: "100%" }} />
             </Form.Item>

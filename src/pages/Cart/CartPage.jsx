@@ -471,7 +471,7 @@ const CartPage = () => {
             const payload = {
               customer_name: deliveryInfo.name,
               phone: deliveryInfo.phone,
-              // Nhét mã CK để admin tra sao kê
+              
               address: `${deliveryInfo.address} | MÃ CK: ${paymentCode}`,
               payment_method: "vietqr",
               voucher_id: selectedVoucherId,
@@ -480,7 +480,7 @@ const CartPage = () => {
 
             const res = await checkoutAPI(user.id, payload);
 
-            // 👉 Ưu tiên dùng id_order trả về từ API nếu có:
+          
             const createdId =
               res?.data?.id_order || res?.id_order || res?.order?.id_order;
 

@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { Table, Input, Select, Button, Tag, Space, message, Modal } from "antd";
-import { fetchAdminProducts, createAdminProduct, updateAdminProduct, deleteAdminProduct } from "@adminApi/productApi";
+import {
+  Table,
+  Input,
+  Select,
+  Button,
+  Tag,
+  Space,
+  message,
+  Modal,
+  Switch, // 👈 thêm
+} from "antd";
+import {
+  fetchAdminProducts,
+  createAdminProduct,
+  updateAdminProduct,
+  deleteAdminProduct,
+} from "@adminApi/productApi";
 import AddProductModal from "@adminComponents/AddProductModal";
 import EditProductModal from "@adminComponents/EditProductModal";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
@@ -15,17 +30,18 @@ const ProductManagement = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const getProducts = async () => {
-  try {
-    const res = await fetchAdminProducts();
-    // Sắp xếp mới nhất lên đầu (theo id_product)
-    const sorted = (res || []).sort((a, b) => b.id_product - a.id_product);
-    setProducts(sorted);
-  } catch (err) {
-    console.error("Không thể load sản phẩm:", err);
-  }
-};
+  // loading theo từng switch
+  const [switchLoading, setSwitchLoading] = useState({}); // { [id_product]: boolean }
 
+  const getProducts = async () => {
+    try {
+      const res = await fetchAdminProducts();
+      const sorted = (res || []).sort((a, b) => b.id_product - a.id_product);
+      setProducts(sorted);
+    } catch (err) {
+      console.error("Không thể load sản phẩm:", err);
+    }
+  };
 
   useEffect(() => {
     getProducts();
@@ -48,25 +64,54 @@ const ProductManagement = () => {
   };
 
   const handleDelete = (id_product) => {
-  Modal.confirm({
-    title: "Bạn có chắc chắn muốn xóa sản phẩm này?",
-    onOk: async () => {
-      try {
-        await deleteAdminProduct(id_product);
-        message.success("Đã xóa sản phẩm thành công!");
-        await getProducts();
-      } catch (error) {
-        console.error("Lỗi khi xóa sản phẩm:", error);
-        message.error("Xóa sản phẩm thất bại!");
-      }
-    },
-  });
-};
+    Modal.confirm({
+      title: "Bạn có chắc chắn muốn xóa sản phẩm này?",
+      onOk: async () => {
+        try {
+          await deleteAdminProduct(id_product);
+          message.success("Đã xóa sản phẩm thành công!");
+          await getProducts();
+        } catch (error) {
+          console.error("Lỗi khi xóa sản phẩm:", error);
+          message.error("Xóa sản phẩm thất bại!");
+        }
+      },
+    });
+  };
 
+  // ====== Toggle nhanh trạng thái (active <-> inactive) ======
+  const handleQuickToggle = async (row, checked) => {
+    const nextStatus = checked ? "active" : "inactive";
+    if (row.status === nextStatus) return;
+
+    setSwitchLoading((p) => ({ ...p, [row.id_product]: true }));
+    try {
+      const fd = new FormData();
+      fd.append("status", nextStatus); // chỉ sửa mỗi status
+      await updateAdminProduct(row.id_product, fd);
+
+      // cập nhật local state
+      setProducts((prev) =>
+        prev.map((it) =>
+          it.id_product === row.id_product ? { ...it, status: nextStatus } : it
+        )
+      );
+      message.success(
+        nextStatus === "active" ? "Đã chuyển sang Hoạt động" : "Đã chuyển sang Không hoạt động"
+      );
+    } catch (err) {
+      console.error("Đổi trạng thái thất bại:", err);
+      message.error("Đổi trạng thái thất bại");
+    } finally {
+      setSwitchLoading((p) => ({ ...p, [row.id_product]: false }));
+    }
+  };
 
   const filteredData = products.filter((item) => {
     const matchesStatus = !filterStatus || item.status === filterStatus;
-    const matchesSearch = item.name?.toLowerCase().includes(searchKeyword.toLowerCase());
+    const matchesSearch = item.name
+      ?.toLowerCase()
+      .includes(searchKeyword.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -81,6 +126,10 @@ const ProductManagement = () => {
           src={img}
           alt="product"
           style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 4 }}
+          onError={(e) => {
+            e.currentTarget.src =
+              "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='70' height='70'><rect width='100%' height='100%' fill='%23f0f0f0'/><text x='50%' y='55%' font-size='10' fill='%23999' text-anchor='middle'>No Image</text></svg>";
+          }}
         />
       ),
     },
@@ -98,7 +147,8 @@ const ProductManagement = () => {
       key: "price",
       width: 120,
       align: "center",
-      render: (price) => (price ? price.toLocaleString("vi-VN") + "₫" : "Chưa cập nhật"),
+      render: (price) =>
+        price ? price.toLocaleString("vi-VN") + "₫" : "Chưa cập nhật",
     },
     {
       title: "Giảm giá",
@@ -130,13 +180,14 @@ const ProductManagement = () => {
       key: "gender",
       align: "center",
       width: 100,
-      render: (g) => (g === "male" ? "Nam" : g === "female" ? "Nữ" : "Unisex"),
+      render: (g) =>
+        g === "male" ? "Nam" : g === "female" ? "Nữ" : "Unisex",
     },
     {
       title: "Lượt xem",
       dataIndex: "views",
       key: "views",
-      width: 80,
+      width: 100,
       align: "center",
     },
     {
@@ -148,20 +199,30 @@ const ProductManagement = () => {
       render: (q) => (q !== null ? q : "-"),
     },
     {
-      title: "Đánh giá",
-      dataIndex: "rating",
-      key: "rating",
-      width: 80,
-      align: "center",
-    },
-    {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       align: "center",
-      width: 130,
-      render: (status) =>
-        status === "active" ? <Tag color="green">Hoạt động</Tag> : <Tag color="red">Không hoạt động</Tag>,
+      width: 180,
+      render: (status, record) => (
+        <Space direction="vertical" size={4} style={{ alignItems: "center" }}>
+          <Tag color={status === "active" ? "green" : "red"}>
+            {status === "active" ? "Hoạt động" : "Không hoạt động"}
+          </Tag>
+          <Switch
+            checked={status === "active"}
+            loading={!!switchLoading[record.id_product]}
+            onChange={(checked) => handleQuickToggle(record, checked)}
+            checkedChildren="Bật"
+            unCheckedChildren="Tắt"
+          />
+        </Space>
+      ),
+      filters: [
+        { text: "Hoạt động", value: "active" },
+        { text: "Không hoạt động", value: "inactive" },
+      ],
+      onFilter: (val, rec) => rec.status === val,
     },
     {
       title: "Hành động",
@@ -173,7 +234,11 @@ const ProductManagement = () => {
           <Button
             icon={<EditOutlined />}
             size="small"
-            style={{ backgroundColor: "#DBB671", borderColor: "#DBB671", color: "#000" }}
+            style={{
+              backgroundColor: "#DBB671",
+              borderColor: "#DBB671",
+              color: "#000",
+            }}
             onClick={() => handleEdit(record)}
           >
             Sửa
@@ -182,7 +247,11 @@ const ProductManagement = () => {
             icon={<DeleteOutlined />}
             danger
             size="small"
-            style={{ backgroundColor: "#DF0404", borderColor: "#DF0404", color: "#fff" }}
+            style={{
+              backgroundColor: "#DF0404",
+              borderColor: "#DF0404",
+              color: "#fff",
+            }}
             onClick={() => handleDelete(record.id_product)}
           >
             Xóa
@@ -209,12 +278,15 @@ const ProductManagement = () => {
           onChange={(value) => setFilterStatus(value)}
           allowClear
           style={{ width: 180 }}
+          value={filterStatus || undefined}
         >
           <Option value="active">Hoạt động</Option>
           <Option value="inactive">Không hoạt động</Option>
         </Select>
 
-        <Button type="primary" onClick={getProducts}>Làm mới</Button>
+        <Button type="primary" onClick={getProducts}>
+          Làm mới
+        </Button>
 
         <Button
           style={{ backgroundColor: "#16C098", borderColor: "#16C098", color: "#fff" }}

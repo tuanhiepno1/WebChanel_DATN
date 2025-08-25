@@ -9,6 +9,7 @@ import {
   DatePicker,
   Select,
   message,
+  Switch, // 👈 thêm
 } from "antd";
 import {
   fetchVouchers,
@@ -29,10 +30,13 @@ const VoucherManagement = () => {
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  // loading theo từng switch
+  const [switchLoading, setSwitchLoading] = useState({}); // { [id_voucher]: boolean }
+
   const getVouchers = async () => {
     try {
-      const data = await fetchVouchers(); // <-- data chính là mảng vouchers
-      setVouchers(data); // <-- dùng trực tiếp
+      const data = await fetchVouchers();    // trả về mảng vouchers
+      setVouchers(data);
     } catch (err) {
       console.error("Failed to fetch vouchers:", err);
     }
@@ -43,8 +47,36 @@ const VoucherManagement = () => {
   }, []);
 
   const filteredVouchers = vouchers.filter((voucher) =>
-    voucher.code.toLowerCase().includes(searchKeyword.toLowerCase())
+    (voucher.code || "").toLowerCase().includes(searchKeyword.toLowerCase())
   );
+
+  // ====== Toggle nhanh trạng thái (active <-> inactive) ======
+  const handleQuickToggle = async (row, checked) => {
+    const nextStatus = checked ? "active" : "inactive";
+    if (row.status === nextStatus) return;
+
+    setSwitchLoading((p) => ({ ...p, [row.id_voucher]: true }));
+    try {
+      // chỉ đổi mỗi status
+      const fd = new FormData();
+      fd.append("status", nextStatus);
+      await updateVoucher(row.id_voucher, fd);
+
+      setVouchers((prev) =>
+        prev.map((it) =>
+          it.id_voucher === row.id_voucher ? { ...it, status: nextStatus } : it
+        )
+      );
+      message.success(
+        nextStatus === "active" ? "Đã chuyển sang Hoạt động" : "Đã chuyển sang Không hoạt động"
+      );
+    } catch (err) {
+      console.error("Đổi trạng thái thất bại:", err);
+      message.error("Đổi trạng thái thất bại");
+    } finally {
+      setSwitchLoading((p) => ({ ...p, [row.id_voucher]: false }));
+    }
+  };
 
   const handleDelete = (id) => {
     Modal.confirm({
@@ -75,42 +107,61 @@ const VoucherManagement = () => {
     {
       title: "Giảm giá",
       key: "discount",
-      render: (text, record) => {
-        return record.type === "percentage"
+      render: (_, record) =>
+        record.type === "percentage"
           ? `${record.discount_amount}%`
-          : `${record.discount_amount.toLocaleString()}đ`;
-      },
+          : `${Number(record.discount_amount || 0).toLocaleString("vi-VN")}đ`,
     },
     {
-      title: "Điều kiện tối thiểu",
+      title: "Đơn tối thiểu",
       dataIndex: "min_order_amount",
-      render: (amount) => `${Number(amount).toLocaleString()}đ`,
+      render: (amount) => `${Number(amount || 0).toLocaleString("vi-VN")}đ`,
     },
     {
       title: "Giảm tối đa",
       dataIndex: "max_discount_amount",
       render: (amount) =>
-        amount ? `${Number(amount).toLocaleString()}đ` : "Không giới hạn",
+        amount ? `${Number(amount).toLocaleString("vi-VN")}đ` : "Không giới hạn",
     },
     {
       title: "Thời gian",
       key: "duration",
-      render: (_, record) => {
-        return `${dayjs(record.start_date).format("DD/MM/YYYY")} - ${dayjs(
+      render: (_, record) =>
+        `${dayjs(record.start_date).format("DD/MM/YYYY")} - ${dayjs(
           record.end_date
-        ).format("DD/MM/YYYY")}`;
-      },
+        ).format("DD/MM/YYYY")}`,
     },
     {
       title: "Giới hạn lượt dùng",
       dataIndex: "usage_limit",
+      width: 140,
+      align: "center",
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
-      render: (status) => (
-        <Tag color={status === "active" ? "green" : "red"}>{status}</Tag>
+      key: "status",
+      width: 200,
+      align: "center",
+      render: (status, record) => (
+        <Space direction="vertical" size={4} style={{ alignItems: "center" }}>
+          <Tag color={status === "active" ? "green" : "red"}>
+            {status === "active" ? "Hoạt động" : "Không hoạt động"}
+          </Tag>
+          <Switch
+            checked={status === "active"}
+            loading={!!switchLoading[record.id_voucher]}
+            onChange={(checked) => handleQuickToggle(record, checked)}
+            checkedChildren="Bật"
+            unCheckedChildren="Tắt"
+          />
+        </Space>
       ),
+      filters: [
+        { text: "Hoạt động", value: "active" },
+        { text: "Không hoạt động", value: "inactive" },
+      ],
+      onFilter: (val, rec) => rec.status === val,
     },
     {
       title: "Hành động",
@@ -118,11 +169,7 @@ const VoucherManagement = () => {
       render: (_, record) => (
         <Space>
           <Button
-            style={{
-              backgroundColor: "#DBB671",
-              borderColor: "#DBB671",
-              color: "#000",
-            }}
+            style={{ backgroundColor: "#DBB671", borderColor: "#DBB671", color: "#000" }}
             icon={<EditOutlined />}
             onClick={() => {
               setSelectedVoucher(record);
@@ -132,15 +179,11 @@ const VoucherManagement = () => {
             Sửa
           </Button>
           <Button
-            style={{
-              backgroundColor: "#DF0404",
-              borderColor: "#DF0404",
-              color: "#fff",
-            }}
+            style={{ backgroundColor: "#DF0404", borderColor: "#DF0404", color: "#fff" }}
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.id_voucher)}
           >
-            Ẩn
+            Xóa
           </Button>
         </Space>
       ),
@@ -151,9 +194,7 @@ const VoucherManagement = () => {
     <div style={{ padding: 16 }}>
       <h2>Quản lý voucher</h2>
 
-      <div
-        style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}
-      >
+      <div style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Input
           placeholder="Tìm theo mã voucher..."
           value={searchKeyword}
@@ -162,11 +203,7 @@ const VoucherManagement = () => {
         />
 
         <Button
-          style={{
-            backgroundColor: "#16C098",
-            borderColor: "#16C098",
-            color: "#fff",
-          }}
+          style={{ backgroundColor: "#16C098", borderColor: "#16C098", color: "#fff" }}
           icon={<PlusOutlined />}
           onClick={() => {
             setSelectedVoucher(null);
@@ -183,6 +220,7 @@ const VoucherManagement = () => {
         dataSource={filteredVouchers.map((v) => ({ ...v, key: v.id_voucher }))}
         columns={columns}
         pagination={{ pageSize: 6 }}
+        rowKey="key"
       />
 
       <VoucherModal

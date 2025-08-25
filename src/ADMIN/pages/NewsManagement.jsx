@@ -9,7 +9,7 @@ import {
   Space,
   message,
   Typography,
-  Switch,                      // 👈 thêm
+  Switch,                    
 } from "antd";
 import {
   ReloadOutlined,
@@ -27,7 +27,7 @@ import DeleteNewsModal from "@adminComponents/DeleteNewsModal";
 
 const { Paragraph } = Typography;
 
-/* ======= Việt hoá trạng thái + màu ======= */
+
 const STATUS_LABEL = {
   draft: "Bản nháp",
   published: "Đã xuất bản",
