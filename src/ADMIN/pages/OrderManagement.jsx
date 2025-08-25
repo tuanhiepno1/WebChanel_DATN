@@ -10,19 +10,19 @@ import OrderDetailModal from "@adminComponents/OrderDetailModal";
 
 const { Option } = Select;
 
-// Flow trạng thái (đúng thứ tự)
+
 const FLOW = ["ordered", "preparing", "shipping", "delivered"];
 
-// Trạng thái kết thúc (không cho đổi nữa)
+
 const TERMINAL = new Set(["delivered", "cancelled"]);
 
-// Chỉ cho chuyển sang đúng "bước kế tiếp" (1 bước)
+
 // Nếu muốn cho phép nhảy tới bất kỳ bước phía trước (miễn là tiến lên),
-// đổi hàm này thành: return FLOW.slice(idx + 1);
+// đổi hàm này thành: return FLOW.slice(idx + 1);, bỏ slice để tiến lên 1 bước
 const getAllowedNextStatuses = (current) => {
   const idx = FLOW.indexOf(current);
   if (idx === -1 || idx >= FLOW.length - 1) return [];
-  return [FLOW[idx + 1]];
+  return FLOW.slice(idx + 1);
 };
 
 const OrderManagement = () => {

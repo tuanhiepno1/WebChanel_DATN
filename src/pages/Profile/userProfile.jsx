@@ -268,8 +268,7 @@ const UserProfile = () => {
                         >
                           Tổng: {formatCurrency(order.total)}
                         </Text>
-
-                        {/* ✅ Chỉ hiển thị nút Hủy khi trạng thái là 'ordered' */}
+                      
                         {canCancel(order.status) && (
                           <Button
                             danger

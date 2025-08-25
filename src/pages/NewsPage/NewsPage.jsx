@@ -1,65 +1,10 @@
-import React from "react";
-import { Row, Col, Card, Typography, List } from "antd";
+import React, { useEffect, useMemo, useState } from "react";
+import { Row, Col, Card, Typography, List, Spin, message, Empty } from "antd";
 import HeaderComponent from "@components/header";
 import FooterComponent from "@components/footer";
-
-// Ảnh local
-import News1 from "@assets/images/news1.png";
-import News2 from "@assets/images/news2.png";
-import News3 from "@assets/images/news3.png";
-import News4 from "@assets/images/news4.png";
-import News5 from "@assets/images/news5.png";
-import News6 from "@assets/images/news6.png";
-import News7 from "@assets/images/news7.png";
-import News8 from "@assets/images/news8.png";
-import NewsBanner from "@assets/images/newsbanner.png";
+import { fetchArticles } from "@api/newsApi";
 
 const { Title, Paragraph } = Typography;
-
-// Data bên trái (bài lớn)
-const leftArticles = [
-  {
-    id: 1,
-    title: "Logo Chanel - Nguồn gốc và ý nghĩa đằng sau logo thương hiệu",
-    cover: News1,
-    excerpt:
-      "Nhắc đến thương hiệu thời trang đẳng cấp thế giới thì chắc chắn không thể bỏ qua cái tên Chanel...",
-  },
-  {
-    id: 2,
-    title:
-      "Đại sứ thương hiệu Chanel – Những cái tên vang danh trong làng thời trang thế giới",
-    cover: News2,
-    excerpt:
-      "Chanel là một trong những thương hiệu thời trang đạt độ phủ sóng toàn cầu với hàng loạt đại sứ đình đám...",
-  },
-];
-
-// Data bên phải (danh sách ngắn)
-const rightArticles = [
-  { id: 101, title: "Top 20 thương hiệu mỹ phẩm dẫn đầu...", cover: News3 },
-  {
-    id: 102,
-    title: "Thương hiệu Chanel và những dòng túi xách...",
-    cover: News5,
-  },
-  {
-    id: 103,
-    title: "Tham khảo bài học quý giá về chiến lược Marketing...",
-    cover: News7,
-  },
-  {
-    id: 104,
-    title: "Đại sứ thương hiệu của Chanel: G-Dragon...",
-    cover: News8,
-  },
-  { id: 105, title: "Xu hướng tăng giá của Chanel...", cover: News6 },
-  {
-    id: 106,
-    title: "Chanel và những sản phẩm nổi bật nhất trong năm 2023...",
-    cover: News4,
-  },
-];
 
 // Helper: khung ảnh tỉ lệ 16:9 (cover)
 const Cover16x9 = ({ src, alt, minHeight = 240 }) => (
@@ -85,32 +30,53 @@ const Cover16x9 = ({ src, alt, minHeight = 240 }) => (
       }}
       onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
       onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+      onError={(e) => {
+        e.currentTarget.src =
+          "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'><rect width='100%' height='100%' fill='%23f0f0f0'/><text x='50%' y='52%' font-size='20' fill='%23999' text-anchor='middle'>No Image</text></svg>";
+      }}
     />
   </div>
 );
 
+// Helper: cắt gọn nội dung
+const excerpt = (text = "", len = 160) => {
+  const s = String(text).replace(/\s+/g, " ").trim();
+  return s.length > len ? s.slice(0, len - 1) + "…" : s;
+};
+
 const NewsPage = () => {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const getData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchArticles();
+      // Chỉ hiển thị bài đã publish (nếu cần)
+      const visible = Array.isArray(res)
+        ? res.filter((a) => a.status === "published" || !a.status)
+        : [];
+      setArticles(visible);
+    } catch (e) {
+      message.error("Không thể tải danh sách bài viết");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    getData();
+  }, []);
+
+  // Chia layout: 2 bài lớn bên trái, phần còn lại danh sách phải
+  const leftArticles = useMemo(() => articles.slice(0, 2), [articles]);
+  const rightArticles = useMemo(() => articles.slice(2, 8), [articles]);
+
   return (
     <>
       <HeaderComponent />
 
       <div style={{ background: "#fff" }}>
-        {/* BANNER: ảnh full, không text */}
-        <div style={{ width: "100%", marginBottom: 24 }}>
-          <div style={{ width: "100%", overflow: "hidden" }}>
-            <img
-              src={NewsBanner}
-              alt="News banner"
-              style={{
-                width: "100%",
-                height: "auto",
-                display: "block",
-                objectFit: "cover",
-              }}
-            />
-          </div>
-        </div>
-
         {/* Title */}
         <div style={{ padding: "16px 0 8px", textAlign: "center" }}>
           <Title level={2} style={{ letterSpacing: 1, marginBottom: 0 }}>
@@ -119,115 +85,119 @@ const NewsPage = () => {
         </div>
 
         {/* Content */}
-        <div
-          style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 40px" }}
-        >
-          <Row gutter={[24, 24]}>
-            {/* LEFT column: bài lớn */}
-            <Col xs={24} md={16}>
-              {leftArticles.map((item) => (
-                <Card
-                  key={item.id}
-                  style={{
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
-                    marginBottom: 24,
-                  }}
-                  bodyStyle={{ padding: 0 }}
-                  hoverable
-                >
-                  <Cover16x9
-                    src={item.cover}
-                    alt={item.title}
-                    minHeight={280}
-                  />
-                  <div style={{ padding: 16 }}>
-                    <Title level={4} style={{ marginTop: 4 }}>
-                      {item.title}
-                    </Title>
-                    <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                      {item.excerpt}
-                    </Paragraph>
-                  </div>
-                </Card>
-              ))}
-            </Col>
-
-            {/* RIGHT column: danh sách ngắn */}
-            <Col xs={24} md={8}>
-              <List
-                itemLayout="vertical"
-                dataSource={rightArticles}
-                split={false}
-                renderItem={(item) => (
-                  <List.Item
-                    key={item.id}
-                    style={{ padding: 0, marginBottom: 16 }}
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 40px" }}>
+          {loading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
+              <Spin size="large" />
+            </div>
+          ) : articles.length === 0 ? (
+            <Empty description="Chưa có bài viết" style={{ padding: "48px 0" }} />
+          ) : (
+            <Row gutter={[24, 24]}>
+              {/* LEFT column: bài lớn động */}
+              <Col xs={24} md={16}>
+                {leftArticles.map((item) => (
+                  <Card
+                    key={item.id_articles}
+                    style={{
+                      borderRadius: 16,
+                      overflow: "hidden",
+                      boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
+                      marginBottom: 24,
+                    }}
+                    bodyStyle={{ padding: 0 }}
+                    hoverable
                   >
-                    <Card
-                      hoverable
-                      style={{
-                        borderRadius: 16,
-                        overflow: "hidden",
-                        boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
-                      }}
-                      bodyStyle={{ padding: 0 }}
+                    <Cover16x9 src={item.image} alt={item.title} minHeight={280} />
+                    <div style={{ padding: 16 }}>
+                      <Title level={4} style={{ marginTop: 4 }}>
+                        {item.title}
+                      </Title>
+                      <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                        {excerpt(item.content, 220)}
+                      </Paragraph>
+                    </div>
+                  </Card>
+                ))}
+              </Col>
+
+              {/* RIGHT column: danh sách ngắn động */}
+              <Col xs={24} md={8}>
+                <List
+                  itemLayout="vertical"
+                  dataSource={rightArticles}
+                  split={false}
+                  renderItem={(item) => (
+                    <List.Item
+                      key={item.id_articles}
+                      style={{ padding: 0, marginBottom: 16 }}
                     >
-                      <Row
-                        gutter={0}
-                        wrap={false}
-                        style={{ alignItems: "stretch" }}
+                      <Card
+                        hoverable
+                        style={{
+                          borderRadius: 16,
+                          overflow: "hidden",
+                          boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
+                        }}
+                        bodyStyle={{ padding: 0 }}
                       >
-                        <Col flex="150px" style={{ overflow: "hidden" }}>
-                          {/* Ảnh 4:3 đẹp với chiều cao cố định */}
-                          <div
-                            style={{
-                              position: "relative",
-                              width: "100%",
-                              aspectRatio: "4 / 3",
-                              minHeight: 120,
-                              overflow: "hidden",
-                            }}
-                          >
-                            <img
-                              src={item.cover}
-                              alt={item.title}
+                        <Row gutter={0} wrap={false} style={{ alignItems: "stretch" }}>
+                          <Col flex="150px" style={{ overflow: "hidden" }}>
+                            {/* Ảnh 4:3 */}
+                            <div
                               style={{
-                                position: "absolute",
-                                inset: 0,
+                                position: "relative",
                                 width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                transition: "transform .35s ease",
+                                aspectRatio: "4 / 3",
+                                minHeight: 120,
+                                overflow: "hidden",
                               }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.transform =
-                                  "scale(1.05)")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.transform = "scale(1)")
-                              }
-                            />
-                          </div>
-                        </Col>
-                        <Col flex="auto">
-                          <div style={{ padding: 12 }}>
-                            <Title
-                              level={5}
-                              style={{ marginBottom: 0, lineHeight: 1.3 }}
                             >
-                              {item.title}
-                            </Title>
-                          </div>
-                        </Col>
-                      </Row>
-                    </Card>
-                  </List.Item>
-                )}
-              />
-            </Col>
-          </Row>
+                              <img
+                                src={item.image}
+                                alt={item.title}
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  transition: "transform .35s ease",
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.transform = "scale(1.05)")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.transform = "scale(1)")
+                                }
+                                onError={(e) => {
+                                  e.currentTarget.src =
+                                    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='100%' height='100%' fill='%23f0f0f0'/><text x='50%' y='52%' font-size='14' fill='%23999' text-anchor='middle'>No Image</text></svg>";
+                                }}
+                              />
+                            </div>
+                          </Col>
+                          <Col flex="auto">
+                            <div style={{ padding: 12 }}>
+                              <Title level={5} style={{ marginBottom: 0, lineHeight: 1.3 }}>
+                                {item.title}
+                              </Title>
+                              <Paragraph
+                                type="secondary"
+                                style={{ marginTop: 6, marginBottom: 0 }}
+                              >
+                                {excerpt(item.content, 100)}
+                              </Paragraph>
+                            </div>
+                          </Col>
+                        </Row>
+                      </Card>
+                    </List.Item>
+                  )}
+                />
+              </Col>
+            </Row>
+          )}
         </div>
       </div>
 
