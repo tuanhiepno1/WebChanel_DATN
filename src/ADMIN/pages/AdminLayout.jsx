@@ -9,6 +9,7 @@ import {
   LogoutOutlined,
   GiftOutlined,
   WechatOutlined,
+  CopyOutlined,
 } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutAndClearCart } from "@features/authSlice";
@@ -64,7 +65,7 @@ const AdminLayout = () => {
     },
     {
       key: "/admin/news",
-      icon: <WechatOutlined />,
+      icon: <CopyOutlined />,
       label: <Link to="/admin/news">Tin tức</Link>,
     },
     {

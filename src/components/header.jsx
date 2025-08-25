@@ -132,11 +132,6 @@ const HeaderComponent = () => {
             maxWidth: "300px",
           }}
         >
-          <Search
-            placeholder="Tìm là thấy"
-            style={{ width: 160 }}
-            allowClear
-          />
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <div
               style={{

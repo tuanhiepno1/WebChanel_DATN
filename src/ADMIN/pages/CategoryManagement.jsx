@@ -75,15 +75,15 @@ const CategoryManagement = () => {
           image: cat.category_image || "https://via.placeholder.com/50",
           name: String(cat.category_name || "").toUpperCase(),
           quantity: productCount,
-          status: cat.status, // 'active' | 'inactive'
+          status: cat.status, 
           subcategories: cat.subcategories || [],
-          raw: cat, // nếu cần thêm field khác sau này
+          raw: cat, 
         };
       });
 
       setData(formatted);
 
-      // nếu đang mở modal chi tiết, sync lại bản ghi
+      
       if (selectedCategory) {
         const updated = formatted.find((i) => i.key === selectedCategory.key);
         if (updated) setSelectedCategory(updated);
@@ -112,14 +112,13 @@ const CategoryManagement = () => {
     setEditModalVisible(true);
   };
 
-  /* ========= Toggle nhanh trạng thái (active <-> inactive) ========= */
+ 
   const handleQuickToggle = async (record, checked) => {
     const nextStatus = checked ? "active" : "inactive";
     const prevStatus = record.status;
 
     if (prevStatus === nextStatus) return;
 
-    // Kiểm tra giới hạn tối đa 4 danh mục active
     if (nextStatus === "active") {
       const activeCount = data.filter((d) => d.status === "active").length;
       const isCurrentlyInactive = prevStatus === "inactive";
@@ -349,7 +348,7 @@ const CategoryManagement = () => {
           flexWrap: "wrap",
         }}
       >
-        <Input placeholder="Tìm kiếm" prefix={<SearchOutlined />} style={{ width: 300 }} />
+        
         <Select
           placeholder="Lọc theo trạng thái"
           style={{ width: 180 }}

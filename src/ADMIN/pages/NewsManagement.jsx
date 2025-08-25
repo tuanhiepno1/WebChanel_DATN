@@ -9,7 +9,7 @@ import {
   Space,
   message,
   Typography,
-  Switch,                    
+  Switch,
 } from "antd";
 import {
   ReloadOutlined,
@@ -26,7 +26,6 @@ import EditNewsModal from "@adminComponents/EditNewsModal";
 import DeleteNewsModal from "@adminComponents/DeleteNewsModal";
 
 const { Paragraph } = Typography;
-
 
 const STATUS_LABEL = {
   draft: "Bản nháp",
@@ -108,7 +107,9 @@ const NewsManagement = () => {
       await updateAdminArticle(row.id_articles, { status: nextStatus });
       setArticles((prev) =>
         prev.map((it) =>
-          it.id_articles === row.id_articles ? { ...it, status: nextStatus } : it
+          it.id_articles === row.id_articles
+            ? { ...it, status: nextStatus }
+            : it
         )
       );
       message.success(`Đã chuyển sang "${STATUS_LABEL[nextStatus]}"`);
@@ -160,7 +161,10 @@ const NewsManagement = () => {
       width: 360,
       align: "center",
       render: (text) => (
-        <Paragraph style={{ marginBottom: 0 }} ellipsis={{ rows: 3, expandable: false }}>
+        <Paragraph
+          style={{ marginBottom: 0 }}
+          ellipsis={{ rows: 3, expandable: false }}
+        >
           {ellipsisText(text, 260)}
         </Paragraph>
       ),
@@ -278,12 +282,27 @@ const NewsManagement = () => {
             ]}
           />
           <Tooltip title="Làm mới dữ liệu">
-            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
+            <Button
+              icon={<ReloadOutlined />}
+              style={{
+                borderRadius: 4,
+                backgroundColor: "#1677ff",
+                color: "#fff",
+                border: "none",
+              }}
+              onClick={load}
+              loading={loading}
+            >
               Làm mới
             </Button>
           </Tooltip>
           <Button
             type="primary"
+            style={{
+              backgroundColor: "#16C098",
+              borderColor: "#16C098",
+              color: "#fff",
+            }}
             icon={<PlusOutlined />}
             onClick={() => setAddOpen(true)}
           >

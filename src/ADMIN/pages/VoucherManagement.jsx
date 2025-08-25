@@ -18,7 +18,7 @@ import {
   deleteVoucher,
 } from "@adminApi/voucherApi";
 import dayjs from "dayjs";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 import VoucherModal from "@adminComponents/VoucherModal";
 
 const { RangePicker } = DatePicker;
@@ -35,7 +35,7 @@ const VoucherManagement = () => {
 
   const getVouchers = async () => {
     try {
-      const data = await fetchVouchers();    // trả về mảng vouchers
+      const data = await fetchVouchers(); // trả về mảng vouchers
       setVouchers(data);
     } catch (err) {
       console.error("Failed to fetch vouchers:", err);
@@ -68,7 +68,9 @@ const VoucherManagement = () => {
         )
       );
       message.success(
-        nextStatus === "active" ? "Đã chuyển sang Hoạt động" : "Đã chuyển sang Không hoạt động"
+        nextStatus === "active"
+          ? "Đã chuyển sang Hoạt động"
+          : "Đã chuyển sang Không hoạt động"
       );
     } catch (err) {
       console.error("Đổi trạng thái thất bại:", err);
@@ -121,7 +123,9 @@ const VoucherManagement = () => {
       title: "Giảm tối đa",
       dataIndex: "max_discount_amount",
       render: (amount) =>
-        amount ? `${Number(amount).toLocaleString("vi-VN")}đ` : "Không giới hạn",
+        amount
+          ? `${Number(amount).toLocaleString("vi-VN")}đ`
+          : "Không giới hạn",
     },
     {
       title: "Thời gian",
@@ -169,7 +173,11 @@ const VoucherManagement = () => {
       render: (_, record) => (
         <Space>
           <Button
-            style={{ backgroundColor: "#DBB671", borderColor: "#DBB671", color: "#000" }}
+            style={{
+              backgroundColor: "#DBB671",
+              borderColor: "#DBB671",
+              color: "#000",
+            }}
             icon={<EditOutlined />}
             onClick={() => {
               setSelectedVoucher(record);
@@ -179,7 +187,11 @@ const VoucherManagement = () => {
             Sửa
           </Button>
           <Button
-            style={{ backgroundColor: "#DF0404", borderColor: "#DF0404", color: "#fff" }}
+            style={{
+              backgroundColor: "#DF0404",
+              borderColor: "#DF0404",
+              color: "#fff",
+            }}
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.id_voucher)}
           >
@@ -194,7 +206,9 @@ const VoucherManagement = () => {
     <div style={{ padding: 16 }}>
       <h2>Quản lý voucher</h2>
 
-      <div style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div
+        style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}
+      >
         <Input
           placeholder="Tìm theo mã voucher..."
           value={searchKeyword}
@@ -203,7 +217,11 @@ const VoucherManagement = () => {
         />
 
         <Button
-          style={{ backgroundColor: "#16C098", borderColor: "#16C098", color: "#fff" }}
+          style={{
+            backgroundColor: "#16C098",
+            borderColor: "#16C098",
+            color: "#fff",
+          }}
           icon={<PlusOutlined />}
           onClick={() => {
             setSelectedVoucher(null);
@@ -213,7 +231,18 @@ const VoucherManagement = () => {
           Thêm voucher
         </Button>
 
-        <Button onClick={getVouchers}>Làm mới</Button>
+        <Button
+          onClick={getVouchers}
+          icon={<ReloadOutlined />}
+          style={{
+            borderRadius: 4,
+            backgroundColor: "#1677ff",
+            color: "#fff",
+            border: "none",
+          }}
+        >
+          Làm mới
+        </Button>
       </div>
 
       <Table

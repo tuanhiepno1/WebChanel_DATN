@@ -18,7 +18,7 @@ import {
 } from "@adminApi/productApi";
 import AddProductModal from "@adminComponents/AddProductModal";
 import EditProductModal from "@adminComponents/EditProductModal";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 
@@ -97,7 +97,9 @@ const ProductManagement = () => {
         )
       );
       message.success(
-        nextStatus === "active" ? "Đã chuyển sang Hoạt động" : "Đã chuyển sang Không hoạt động"
+        nextStatus === "active"
+          ? "Đã chuyển sang Hoạt động"
+          : "Đã chuyển sang Không hoạt động"
       );
     } catch (err) {
       console.error("Đổi trạng thái thất bại:", err);
@@ -180,8 +182,7 @@ const ProductManagement = () => {
       key: "gender",
       align: "center",
       width: 100,
-      render: (g) =>
-        g === "male" ? "Nam" : g === "female" ? "Nữ" : "Unisex",
+      render: (g) => (g === "male" ? "Nam" : g === "female" ? "Nữ" : "Unisex"),
     },
     {
       title: "Lượt xem",
@@ -265,7 +266,9 @@ const ProductManagement = () => {
     <div style={{ minHeight: "calc(100vh - 160px)" }}>
       <h2 style={{ marginBottom: 16 }}>Quản lý sản phẩm</h2>
 
-      <div style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 12 }}>
+      <div
+        style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 12 }}
+      >
         <Input
           placeholder="Tìm kiếm sản phẩm..."
           value={searchKeyword}
@@ -284,12 +287,26 @@ const ProductManagement = () => {
           <Option value="inactive">Không hoạt động</Option>
         </Select>
 
-        <Button type="primary" onClick={getProducts}>
+        <Button
+          type="primary"
+          onClick={getProducts}
+          icon={<ReloadOutlined />}
+          style={{
+            borderRadius: 4,
+            backgroundColor: "#1677ff",
+            color: "#fff",
+            border: "none",
+          }}
+        >
           Làm mới
         </Button>
 
         <Button
-          style={{ backgroundColor: "#16C098", borderColor: "#16C098", color: "#fff" }}
+          style={{
+            backgroundColor: "#16C098",
+            borderColor: "#16C098",
+            color: "#fff",
+          }}
           onClick={() => setAddModalVisible(true)}
         >
           + Thêm sản phẩm
@@ -297,7 +314,10 @@ const ProductManagement = () => {
       </div>
 
       <Table
-        dataSource={filteredData.map((item) => ({ ...item, key: item.id_product }))}
+        dataSource={filteredData.map((item) => ({
+          ...item,
+          key: item.id_product,
+        }))}
         columns={columns}
         pagination={{ pageSize: 6, showSizeChanger: false }}
         scroll={{ x: 1200 }}

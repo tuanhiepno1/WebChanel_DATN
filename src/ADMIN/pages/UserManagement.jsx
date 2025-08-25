@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { Table, Tag, Input, Select, Button, Space, Avatar, Modal, Switch, message } from "antd";
+import {
+  Table,
+  Tag,
+  Input,
+  Select,
+  Button,
+  Space,
+  Avatar,
+  Modal,
+  Switch,
+  message,
+} from "antd";
 import { useSelector } from "react-redux";
 import {
   fetchAdminUsers,
@@ -12,6 +23,7 @@ import {
   DeleteOutlined,
   UserAddOutlined,
   ShoppingOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import AddUserModal from "@adminComponents/AddUserModal";
 import EditUserModal from "@adminComponents/EditUserModal";
@@ -95,10 +107,14 @@ const UserManagement = () => {
     try {
       await updateAdminUser(record.id_user, { status: nextStatus }); // chỉ gửi status
       setUsers((prev) =>
-        prev.map((u) => (u.id_user === record.id_user ? { ...u, status: nextStatus } : u))
+        prev.map((u) =>
+          u.id_user === record.id_user ? { ...u, status: nextStatus } : u
+        )
       );
       message.success(
-        nextStatus === "active" ? "Đã chuyển sang Hoạt động" : "Đã chuyển sang Không hoạt động"
+        nextStatus === "active"
+          ? "Đã chuyển sang Hoạt động"
+          : "Đã chuyển sang Không hoạt động"
       );
     } catch (err) {
       console.error("Toggle status error:", err);
@@ -109,7 +125,9 @@ const UserManagement = () => {
   };
 
   const filteredUsers = users.filter((user) => {
-    const matchName = user.username?.toLowerCase().includes(searchKeyword.toLowerCase());
+    const matchName = user.username
+      ?.toLowerCase()
+      .includes(searchKeyword.toLowerCase());
     const matchRole = !filterRole || String(user.role) === filterRole;
     const matchStatus = !filterStatus || user.status === filterStatus;
     return matchName && matchRole && matchStatus;
@@ -166,7 +184,12 @@ const UserManagement = () => {
       dataIndex: "role",
       key: "role",
       align: "center",
-      render: (role) => (role === 1 ? <Tag color="red">Admin</Tag> : <Tag color="blue">User</Tag>),
+      render: (role) =>
+        role === 1 ? (
+          <Tag color="red">Admin</Tag>
+        ) : (
+          <Tag color="blue">User</Tag>
+        ),
       filters: [
         { text: "Admin", value: 1 },
         { text: "User", value: 0 },
@@ -267,10 +290,18 @@ const UserManagement = () => {
   ];
 
   return (
-    <div style={{ minHeight: "calc(100vh - 160px)", padding: 16, overflowX: "auto" }}>
+    <div
+      style={{
+        minHeight: "calc(100vh - 160px)",
+        padding: 16,
+        overflowX: "auto",
+      }}
+    >
       <h2 style={{ marginBottom: 16 }}>Quản lý người dùng</h2>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+      <div
+        style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}
+      >
         <Input
           placeholder="Tìm kiếm theo tên..."
           value={searchKeyword}
@@ -300,7 +331,17 @@ const UserManagement = () => {
           <Option value="inactive">Không hoạt động</Option>
         </Select>
 
-        <Button type="primary" onClick={getUsers}>
+        <Button
+          type="primary"
+          onClick={getUsers}
+          icon={<ReloadOutlined />}
+          style={{
+            borderRadius: 4,
+            backgroundColor: "#1677ff",
+            color: "#fff",
+            border: "none",
+          }}
+        >
           Làm mới
         </Button>
 
@@ -329,7 +370,10 @@ const UserManagement = () => {
         onSubmit={async () => {
           try {
             await createAdminUser(newUser);
-            Modal.success({ title: "Thành công", content: "Đã thêm người dùng mới!" });
+            Modal.success({
+              title: "Thành công",
+              content: "Đã thêm người dùng mới!",
+            });
             setAddModalVisible(false);
             setNewUser({
               username: "",
@@ -344,7 +388,10 @@ const UserManagement = () => {
             await getUsers();
           } catch (err) {
             console.error("Lỗi khi thêm user:", err);
-            Modal.error({ title: "Thất bại", content: "Không thể thêm người dùng." });
+            Modal.error({
+              title: "Thất bại",
+              content: "Không thể thêm người dùng.",
+            });
           }
         }}
       />

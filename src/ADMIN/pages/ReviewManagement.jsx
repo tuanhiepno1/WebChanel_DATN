@@ -133,9 +133,9 @@ const ReviewManagement = () => {
           />
           <Tooltip title="Làm mới dữ liệu">
             <Button
-              icon={<ReloadOutlined />}
               onClick={getReviews}
               loading={loading}
+              icon={<ReloadOutlined />}
               style={{
                 borderRadius: 4,
                 backgroundColor: "#1677ff",

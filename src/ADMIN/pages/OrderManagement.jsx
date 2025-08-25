@@ -5,17 +5,15 @@ import {
   updateOrderStatus,
   fetchOrderById,
 } from "@adminApi/orderAPI";
+import { ReloadOutlined } from "@ant-design/icons";
 import { ORDER_STATUS } from "@utils/orderStatus";
 import OrderDetailModal from "@adminComponents/OrderDetailModal";
 
 const { Option } = Select;
 
-
 const FLOW = ["ordered", "preparing", "shipping", "delivered"];
 
-
 const TERMINAL = new Set(["delivered", "cancelled"]);
-
 
 // Nếu muốn cho phép nhảy tới bất kỳ bước phía trước (miễn là tiến lên),
 // đổi hàm này thành: return FLOW.slice(idx + 1);, bỏ slice để tiến lên 1 bước
@@ -35,7 +33,6 @@ const OrderManagement = () => {
     setLoading(true);
     try {
       const data = await fetchAllOrders();
-      // Ẩn các đơn 'cart' nếu BE vẫn trả về (phòng trường hợp cũ)
       const filtered = Array.isArray(data)
         ? data.filter((o) => o.status !== "cart")
         : [];
@@ -72,7 +69,6 @@ const OrderManagement = () => {
       return;
     }
 
-    // Chỉ cho phép bước kế tiếp
     const allowed = getAllowedNextStatuses(current);
     if (!allowed.includes(newStatus)) {
       message.warning("Chỉ được chuyển sang trạng thái kế tiếp.");
@@ -257,7 +253,17 @@ const OrderManagement = () => {
           ))}
         </Select>
 
-        <Button type="primary" onClick={loadOrders}>
+        <Button
+          type="primary"
+          onClick={loadOrders}
+          icon={<ReloadOutlined />}
+          style={{
+            borderRadius: 4,
+            backgroundColor: "#1677ff",
+            color: "#fff",
+            border: "none",
+          }}
+        >
           Làm mới
         </Button>
       </div>
