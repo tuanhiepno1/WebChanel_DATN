@@ -42,7 +42,6 @@ const UserProfile = () => {
 
   const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
-  // ✅ Chỉ được hủy khi trạng thái là 'ordered'
   const canCancel = (status) => status === "ordered";
 
   const getOrderTag = (status) => {
@@ -71,11 +70,23 @@ const UserProfile = () => {
 
   useEffect(() => {
     const loadOrderHistory = async () => {
-      if (user?.id_user) {
-        const data = await fetchOrderHistoryByUserId(user.id_user);
-        setOrderHistory(data);
-      }
+      if (!user?.id_user) return;
+
+      const raw = await fetchOrderHistoryByUserId(user.id_user);
+
+      const orders = Array.isArray(raw?.data)
+        ? raw.data
+        : Array.isArray(raw)
+        ? raw
+        : [];
+
+      const filtered = orders.filter(
+        (o) => (o?.status || "").toLowerCase() !== "cart"
+      );
+
+      setOrderHistory(filtered);
     };
+
     loadOrderHistory();
   }, [user?.id_user]);
 
@@ -268,7 +279,7 @@ const UserProfile = () => {
                         >
                           Tổng: {formatCurrency(order.total)}
                         </Text>
-                      
+
                         {canCancel(order.status) && (
                           <Button
                             danger
