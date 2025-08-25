@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Row, Col, Rate, Button, Divider, Spin, Empty, Form, Input, message, Card } from "antd";
+import { Row, Col, Rate, Button, Divider, Spin, Empty, Form, Input, message, Card, Tag } from "antd";
 import {
   ShoppingCartOutlined,
   PayCircleOutlined,
@@ -48,7 +48,6 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
           setAverageFromApi(average);
         }
       } catch (e) {
-        // có thể log hoặc hiển thị lỗi nhẹ
         console.error(e);
       } finally {
         if (mounted) setLoadingReviews(false);
@@ -65,6 +64,19 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
     const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
     return Math.round((sum / reviews.length) * 10) / 10;
   }, [product?.rating, averageFromApi, reviews]);
+
+  const formatVND = (n) =>
+    typeof n === "number" && n > 0
+      ? n.toLocaleString("vi-VN") + "₫"
+      : "Liên hệ";
+
+  // === Giá & giảm giá ===
+  const basePrice = Number(product?.price) || 0;
+  const discountPct = Number(product?.discount) || 0; // % giảm (nếu có)
+  const hasDiscount = basePrice > 0 && discountPct > 0;
+  const finalPrice = hasDiscount
+    ? Math.max(0, Math.round(basePrice * (1 - discountPct / 100)))
+    : basePrice;
 
   if (!product) return <p style={{ padding: 20 }}>Sản phẩm không tồn tại.</p>;
 
@@ -113,7 +125,6 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
 
       const serverReview = await createProductReview(payload);
 
-      // Tạo item mới để hiển thị ngay
       const displayName =
         user?.fullname ||
         [user?.firstname, user?.lastname].filter(Boolean).join(" ") ||
@@ -130,12 +141,11 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
 
       setReviews((prev) => [newItem, ...prev]);
 
-      // Cập nhật count/average nhanh gọn
       setReviewCount((c) => c + 1);
       setAverageFromApi((prevAvg) => {
-        const c = reviewCount; // giá trị cũ trước khi +1
+        const c = reviewCount;
         const newAvg = (prevAvg > 0 ? prevAvg : averageRating) || 0;
-        const updated = ((newAvg * c + payload.rating) / (c + 1));
+        const updated = (newAvg * c + payload.rating) / (c + 1);
         return Math.round(updated * 10) / 10;
       });
 
@@ -209,7 +219,7 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
             </Col>
 
             <Col xs={24} md={14}>
-              <h1>{product.name}</h1>
+              <h1 style={{ marginBottom: 8 }}>{product.name}</h1>
               <div
                 style={{
                   height: 2,
@@ -219,8 +229,25 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                 }}
               />
 
+              {/* Giá hiển thị rõ ràng */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                {hasDiscount && (
+                  <Tag color="red" style={{ fontSize: 14, padding: "2px 8px" }}>
+                    -{discountPct}%
+                  </Tag>
+                )}
+                <span style={{ fontSize: 28, fontWeight: 700, color: "#d4380d" }}>
+                  {formatVND(finalPrice)}
+                </span>
+                {hasDiscount && (
+                  <span style={{ color: "#999", textDecoration: "line-through", fontSize: 16 }}>
+                    {formatVND(basePrice)}
+                  </span>
+                )}
+              </div>
+
               {/* Điểm và số lượng review */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <Rate disabled allowHalf value={Number(averageRating) || 0} />
                 <span style={{ color: "#555" }}>
                   {averageRating ? `${averageRating}/5` : "Chưa có đánh giá"}
@@ -229,7 +256,7 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
               </div>
 
               {extraInfo.map((item) => (
-                <p key={item.label} style={{ fontSize: 16 }}>
+                <p key={item.label} style={{ fontSize: 16, marginBottom: 6 }}>
                   <strong>{item.label}:</strong> {item.value}
                 </p>
               ))}
@@ -373,7 +400,6 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                   alignItems: "flex-start",
                 }}
               >
-                {/* avatar đơn giản theo chữ cái đầu */}
                 <div
                   style={{
                     width: 48,

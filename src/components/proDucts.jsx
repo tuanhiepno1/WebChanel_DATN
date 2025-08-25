@@ -12,36 +12,30 @@ const ProductCard = ({ product }) => {
   const user = useSelector((s) => s.auth.user); 
 
   const handleAddToCart = async (e) => {
-  e.stopPropagation();
+    e.stopPropagation();
 
-  
-  const cleanedPrice =
-    typeof product.price === "string" ? product.price.replace(/[^\d]/g, "") : product.price;
-  const fixedPrice = Number(cleanedPrice) || 0;
+    const cleanedPrice =
+      typeof product.price === "string" ? product.price.replace(/[^\d]/g, "") : product.price;
+    const fixedPrice = Number(cleanedPrice) || 0;
 
-  if (!user?.id) {
-    
-    dispatch(addToCart({ ...product, price: fixedPrice, quantity: 1 }));
-    message.success("Đã thêm sản phẩm vào giỏ hàng!");
-    return;
-  }
+    if (!user?.id) {
+      dispatch(addToCart({ ...product, price: fixedPrice, quantity: 1 }));
+      message.success("Đã thêm sản phẩm vào giỏ hàng!");
+      return;
+    }
 
-  try {
-    
-    await addToCartAPI(user.id, {
-      id_product: product.id,
-      quantity: 1,
-    });
-
-    // Sync lại giỏ từ BE để UI cập nhật
-    await dispatch(fetchCart(user.id));
-
-    message.success("Đã thêm sản phẩm vào giỏ hàng!");
-  } catch (err) {
-    console.error(err);
-    message.error("Thêm vào giỏ thất bại. Vui lòng thử lại.");
-  }
-};
+    try {
+      await addToCartAPI(user.id, {
+        id_product: product.id,
+        quantity: 1,
+      });
+      await dispatch(fetchCart(user.id));
+      message.success("Đã thêm sản phẩm vào giỏ hàng!");
+    } catch (err) {
+      console.error(err);
+      message.error("Thêm vào giỏ thất bại. Vui lòng thử lại.");
+    }
+  };
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined || value === "") return "0 ₫";
@@ -54,6 +48,24 @@ const ProductCard = ({ product }) => {
       minimumFractionDigits: 0,
     }).format(number);
   };
+
+  /* == THÊM: tính giá sau giảm theo discount BE trả về (ví dụ "6.00") == */
+  const basePriceNum =
+    typeof product.price === "string"
+      ? Number(product.price.replace(/[^\d]/g, "")) || 0
+      : Number(product.price) || 0;
+
+  // discount %: "6.00" -> 6
+  const discountPct = Number(product?.discount) || 0;
+  const hasDiscount = discountPct > 0;
+
+  // Giá sau giảm (làm tròn số nguyên VND)
+  const salePriceNum = hasDiscount
+    ? Math.max(0, Math.round((basePriceNum * (100 - discountPct)) / 100))
+    : basePriceNum;
+
+  const savedNum = hasDiscount ? basePriceNum - salePriceNum : 0;
+  /* =============================================================== */
 
   return (
     <Card
@@ -101,6 +113,26 @@ const ProductCard = ({ product }) => {
           flexShrink: 0,
         }}
       >
+        {/* Badge phần trăm giảm nếu có */}
+        {hasDiscount && (
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              zIndex: 2,
+              background: "#ff4d4f",
+              color: "#fff",
+              padding: "4px 8px",
+              borderRadius: 8,
+              fontWeight: 700,
+              fontSize: 12,
+            }}
+          >
+            -{discountPct}%
+          </div>
+        )}
+
         <img
           src={product.image}
           alt={product.name}
@@ -118,6 +150,10 @@ const ProductCard = ({ product }) => {
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "scale(1)";
+          }}
+          onError={(e) => {
+            e.currentTarget.src =
+              "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='100%' height='100%' fill='%23f5f5f5'/><text x='50%' y='50%' fill='%23999' font-size='14' text-anchor='middle' dominant-baseline='middle'>No Image</text></svg>";
           }}
         />
         <Tooltip title="Thêm vào giỏ hàng">
@@ -155,23 +191,48 @@ const ProductCard = ({ product }) => {
           <h4 style={{ fontSize: 18, minHeight: 42, marginBottom: 8 }}>
             {product.name}
           </h4>
-          {/* ĐÃ BỎ RATING  */}
         </div>
-        <span
-          style={{
-            fontWeight: "bold",
-            fontSize: 18,
-            color: "#ff4d4f",
-            marginTop: 8,
-          }}
-        >
-          {formatCurrency(product.price)}
-        </span>
+
+        {/* HIỂN THỊ GIẢM GIÁ (chỉ thêm đoạn này, giữ nguyên các phần khác) */}
+        {hasDiscount ? (
+          <div style={{ display: "grid", gap: 4 }}>
+            <span
+              style={{
+                fontWeight: "bold",
+                fontSize: 18,
+                color: "#ff4d4f", // giá sale màu đỏ
+                marginTop: 8,
+              }}
+            >
+              {formatCurrency(salePriceNum)}
+            </span>
+            <div style={{ fontSize: 13, color: "#999" }}>
+              <span style={{ textDecoration: "line-through", marginRight: 8 }}>
+                {formatCurrency(basePriceNum)}
+              </span>
+              <span style={{ fontWeight: 600, color: "#52c41a" }}>
+                Tiết kiệm {formatCurrency(savedNum)} ({discountPct}%)
+              </span>
+            </div>
+          </div>
+        ) : (
+          <span
+            style={{
+              fontWeight: "bold",
+              fontSize: 18,
+              color: "#ff4d4f",
+              marginTop: 8,
+            }}
+          >
+            {formatCurrency(product.price)}
+          </span>
+        )}
       </div>
     </Card>
   );
 };
 
+/* ProductGrid giữ nguyên */
 export const ProductGrid = ({ products }) => {
   const pageSize = 9;
   const [currentPage, setCurrentPage] = useState(1);
@@ -198,7 +259,6 @@ export const ProductGrid = ({ products }) => {
           </Col>
         ))}
 
-        {/* Cột rỗng giữ layout nếu thiếu sản phẩm trên hàng cuối */}
         {Array.from({ length: emptySlots }).map((_, index) => (
           <Col key={`empty-${index}`} xs={24} sm={12} md={8} style={{ display: "flex" }}>
             <div style={{ flex: 1, visibility: "hidden" }}>

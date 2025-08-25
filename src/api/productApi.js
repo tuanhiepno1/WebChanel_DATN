@@ -119,16 +119,17 @@ export const mapProducts = (items) =>
     id: item.id_product,
     name: item.name,
     image: item.image,
-    slug: getSlugFromCategory(item.id_category), // ✅ Lấy đúng slug từ ID
+    slug: getSlugFromCategory(item.id_category), 
     price: `${item.price.toLocaleString()}₫`,
+     discount: item.discount != null ? Number(item.discount) : 0,
     rating: item.rating || 0,
     type: item.type || null,
     volume: item.volume || null,
     gender: item.gender || null,
-    category_slug: getSlugFromCategory(item.id_category), // ✅ Add chính xác category_slug ở đây
+    category_slug: getSlugFromCategory(item.id_category),
   }));
 
-// Hàm phụ (tuỳ bạn xử lý sao cho đúng slug tương ứng id_category)
+
 const getSlugFromCategory = (id_category) => {
   const map = {
     1: "nuoc-hoa",

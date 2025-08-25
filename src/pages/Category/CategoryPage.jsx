@@ -98,7 +98,7 @@ const CategoryPage = () => {
                   categories={category?.subcategories || []}
                   featuredProducts={products.slice(0, 5)}
                   onSubcategoryClick={handleFilterBySubcategory}
-                  onResetFilters={handleResetFilters} // ★ truyền xuống
+                  onResetFilters={handleResetFilters}
                 />
               </motion.div>
             )}
