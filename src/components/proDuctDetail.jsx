@@ -72,11 +72,12 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
 
   // === Giá & giảm giá ===
   const basePrice = Number(product?.price) || 0;
-  const discountPct = Number(product?.discount) || 0; // % giảm (nếu có)
+  const discountPct = Number(product?.discount) || 0; // % giảm (có thể "6.00")
   const hasDiscount = basePrice > 0 && discountPct > 0;
   const finalPrice = hasDiscount
     ? Math.max(0, Math.round(basePrice * (1 - discountPct / 100)))
     : basePrice;
+  const saved = hasDiscount ? Math.max(0, basePrice - finalPrice) : 0;
 
   if (!product) return <p style={{ padding: 20 }}>Sản phẩm không tồn tại.</p>;
 
@@ -230,19 +231,34 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
               />
 
               {/* Giá hiển thị rõ ràng */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                {hasDiscount && (
-                  <Tag color="red" style={{ fontSize: 14, padding: "2px 8px" }}>
-                    -{discountPct}%
-                  </Tag>
-                )}
-                <span style={{ fontSize: 28, fontWeight: 700, color: "#d4380d" }}>
-                  {formatVND(finalPrice)}
-                </span>
-                {hasDiscount && (
-                  <span style={{ color: "#999", textDecoration: "line-through", fontSize: 16 }}>
-                    {formatVND(basePrice)}
+              <div style={{ marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {hasDiscount && (
+                    <Tag color="red" style={{ fontSize: 14, padding: "2px 8px" }}>
+                      -{discountPct}%
+                    </Tag>
+                  )}
+                  <span style={{ fontSize: 28, fontWeight: 700, color: "#d4380d" }}>
+                    {formatVND(finalPrice)}
                   </span>
+                  {hasDiscount && (
+                    <span
+                      style={{
+                        color: "#999",
+                        textDecoration: "line-through",
+                        fontSize: 16,
+                      }}
+                    >
+                      {formatVND(basePrice)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Dòng tiết kiệm */}
+                {hasDiscount && (
+                  <div style={{ marginTop: 4, fontSize: 14, color: "#52c41a", fontWeight: 600 }}>
+                    Tiết kiệm {formatVND(saved)} ({discountPct}%)
+                  </div>
                 )}
               </div>
 
@@ -273,8 +289,8 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                   icon={<ShoppingCartOutlined />}
                   onClick={handleAddToCart}
                   style={{
-                    backgroundColor: "#aaa",
-                    color: "#fff",
+                    backgroundColor: "#DBB671",
+                    color: "#000",
                     border: "none",
                     height: 48,
                     fontWeight: 500,
@@ -282,19 +298,6 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                   }}
                 >
                   THÊM VÀO GIỎ HÀNG
-                </Button>
-                <Button
-                  icon={<PayCircleOutlined />}
-                  style={{
-                    backgroundColor: "#DBB671",
-                    color: "#000",
-                    border: "1px solid #DBB671",
-                    height: 48,
-                    fontWeight: 500,
-                    width: 500,
-                  }}
-                >
-                  MUA NGAY
                 </Button>
               </div>
             </Col>

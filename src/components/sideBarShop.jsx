@@ -1,9 +1,21 @@
 import React, { useState } from "react";
-import { Typography, Divider, Slider, Rate, Button } from "antd";
+import { Typography, Divider, Slider, Button } from "antd";
 import { RightOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
 const { Text } = Typography;
+
+/* Helpers: parse & format tiền */
+const toNumber = (val) => {
+  if (typeof val === "number") return val;
+  return Number(String(val ?? "").replace(/[^\d.-]/g, "")) || 0;
+};
+const formatCurrency = (n) =>
+  Number(n || 0).toLocaleString("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+  });
 
 const GenericSidebar = ({
   title,
@@ -122,63 +134,114 @@ const GenericSidebar = ({
       {/* Sản phẩm nổi bật */}
       <Divider orientation="left">Sản phẩm nổi bật</Divider>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {featuredProducts.slice(0, 5).map((prod) => (
-          <div
-            key={prod.id ?? prod.id_product ?? prod._id}
-            role="button"
-            tabIndex={0}
-            onClick={() => goDetail(prod)}
-            onKeyDown={(e) => e.key === "Enter" && goDetail(prod)}
-            style={{
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-              cursor: "pointer",
-              padding: 6,
-              borderRadius: 6,
-              transition: "background .2s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "transparent")
-            }
-          >
-            <img
-              src={prod.image}
-              alt={prod.name}
+        {featuredProducts.slice(0, 5).map((prod) => {
+          const base = toNumber(prod.price); // prod.price có thể là "2.450.000₫"
+          const discountPct = Number(prod?.discount) || 0; // "6.00" -> 6
+          const hasDiscount = discountPct > 0;
+          const sale = hasDiscount
+            ? Math.max(0, Math.round((base * (100 - discountPct)) / 100))
+            : base;
+          const save = hasDiscount ? base - sale : 0;
+
+          return (
+            <div
+              key={prod.id ?? prod.id_product ?? prod._id}
+              role="button"
+              tabIndex={0}
+              onClick={() => goDetail(prod)}
+              onKeyDown={(e) => e.key === "Enter" && goDetail(prod)}
               style={{
-                width: 60,
-                height: 60,
-                objectFit: "cover",
+                display: "flex",
+                gap: 12,
+                alignItems: "center",
+                cursor: "pointer",
+                padding: 6,
                 borderRadius: 6,
-                border: "1px solid #f0f0f0",
-                flexShrink: 0,
+                transition: "background .2s",
+                position: "relative",
               }}
-            />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Text
-                strong
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#fafafa")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              {/* Badge -% nếu có */}
+              {hasDiscount && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    left: 6,
+                    background: "#ff4d4f",
+                    color: "#fff",
+                    padding: "2px 6px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  -{discountPct}%
+                </div>
+              )}
+
+              <img
+                src={prod.image}
+                alt={prod.name}
                 style={{
-                  fontSize: 14,
-                  display: "block",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  width: 60,
+                  height: 60,
+                  objectFit: "cover",
+                  borderRadius: 6,
+                  border: "1px solid #f0f0f0",
+                  flexShrink: 0,
                 }}
-              >
-                {prod.name}
-              </Text>
-              <Text type="danger" style={{ fontSize: 13, display: "block" }}>
-                {typeof prod.price === "number"
-                  ? prod.price.toLocaleString("vi-VN", {
-                      style: "currency",
-                      currency: "VND",
-                    })
-                  : prod.price}
-              </Text>
+                onError={(e) => {
+                  e.currentTarget.src =
+                    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><rect width='100%' height='100%' fill='%23f5f5f5'/><text x='50%' y='54%' font-size='10' fill='%23999' text-anchor='middle'>No Image</text></svg>";
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  strong
+                  style={{
+                    fontSize: 14,
+                    display: "block",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {prod.name}
+                </Text>
+
+                {/* Giá / Giá sau giảm */}
+                {hasDiscount ? (
+                  <div style={{ lineHeight: 1.2 }}>
+                    <Text type="danger" strong style={{ fontSize: 13, display: "block" }}>
+                      {formatCurrency(sale)}
+                    </Text>
+                    <span style={{ fontSize: 12, color: "#999" }}>
+                      <span style={{ textDecoration: "line-through", marginRight: 6 }}>
+                        {formatCurrency(base)}
+                      </span>
+                      <span style={{ color: "#52c41a", fontWeight: 600 }}>
+                        Tiết kiệm {formatCurrency(save)}
+                      </span>
+                    </span>
+                  </div>
+                ) : (
+                  <Text type="danger" style={{ fontSize: 13, display: "block" }}>
+                    {typeof prod.price === "number"
+                      ? formatCurrency(prod.price)
+                      : prod.price}
+                  </Text>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
