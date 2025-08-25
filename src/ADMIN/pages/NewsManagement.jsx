@@ -9,6 +9,7 @@ import {
   Space,
   message,
   Typography,
+  Switch,                      // 👈 thêm
 } from "antd";
 import {
   ReloadOutlined,
@@ -18,7 +19,7 @@ import {
   DeleteOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { fetchAdminArticles } from "@adminApi/newsApi";
+import { fetchAdminArticles, updateAdminArticle } from "@adminApi/newsApi"; // 👈 thêm update
 
 import AddNewsModal from "@adminComponents/AddNewsModal";
 import EditNewsModal from "@adminComponents/EditNewsModal";
@@ -26,11 +27,20 @@ import DeleteNewsModal from "@adminComponents/DeleteNewsModal";
 
 const { Paragraph } = Typography;
 
-const statusTag = (s) => {
-  if (s === "published") return <Tag color="green">Published</Tag>;
-  if (s === "draft") return <Tag color="orange">Draft</Tag>;
-  return <Tag>—</Tag>;
+/* ======= Việt hoá trạng thái + màu ======= */
+const STATUS_LABEL = {
+  draft: "Bản nháp",
+  published: "Đã xuất bản",
+  deleted: "Đã xóa",
 };
+const STATUS_COLOR = {
+  draft: "orange",
+  published: "green",
+  deleted: "red",
+};
+const renderStatusTag = (s) => (
+  <Tag color={STATUS_COLOR[s] || "default"}>{STATUS_LABEL[s] || s}</Tag>
+);
 
 const ellipsisText = (text = "", len = 150) => {
   const s = String(text).replace(/\s+/g, " ").trim();
@@ -43,13 +53,16 @@ const NewsManagement = () => {
 
   // filters
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all"); // all | published | draft
+  const [status, setStatus] = useState("all"); // all | published | draft | deleted
 
   // modal states
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [current, setCurrent] = useState(null);
+
+  // loading theo hàng khi bật/tắt switch
+  const [switchLoading, setSwitchLoading] = useState({});
 
   const load = async () => {
     setLoading(true);
@@ -78,6 +91,33 @@ const NewsManagement = () => {
       })
       .sort((a, b) => (b.id_articles || 0) - (a.id_articles || 0));
   }, [articles, q, status]);
+
+  /* ======= Toggle nhanh trạng thái (draft/published) ======= */
+  const handleQuickToggle = async (row, checked) => {
+    if (row.status === "deleted") {
+      message.warning("Bài viết đã xóa, không thể đổi trạng thái.");
+      return;
+    }
+    const nextStatus = checked ? "published" : "draft";
+
+    // không cần gọi API nếu không đổi
+    if (row.status === nextStatus) return;
+
+    setSwitchLoading((prev) => ({ ...prev, [row.id_articles]: true }));
+    try {
+      await updateAdminArticle(row.id_articles, { status: nextStatus });
+      setArticles((prev) =>
+        prev.map((it) =>
+          it.id_articles === row.id_articles ? { ...it, status: nextStatus } : it
+        )
+      );
+      message.success(`Đã chuyển sang "${STATUS_LABEL[nextStatus]}"`);
+    } catch (e) {
+      message.error("Đổi trạng thái thất bại");
+    } finally {
+      setSwitchLoading((prev) => ({ ...prev, [row.id_articles]: false }));
+    }
+  };
 
   const columns = [
     {
@@ -109,7 +149,7 @@ const NewsManagement = () => {
           />
           <div style={{ minWidth: 220 }}>
             <div style={{ fontWeight: 600 }}>{row.title}</div>
-            <div>{statusTag(row.status)}</div>
+            <div>{renderStatusTag(row.status)}</div>
           </div>
         </Space>
       ),
@@ -120,10 +160,7 @@ const NewsManagement = () => {
       width: 360,
       align: "center",
       render: (text) => (
-        <Paragraph
-          style={{ marginBottom: 0 }}
-          ellipsis={{ rows: 3, expandable: false }}
-        >
+        <Paragraph style={{ marginBottom: 0 }} ellipsis={{ rows: 3, expandable: false }}>
           {ellipsisText(text, 260)}
         </Paragraph>
       ),
@@ -145,6 +182,32 @@ const NewsManagement = () => {
       sorter: (a, b) =>
         dayjs(a.updated_at).valueOf() - dayjs(b.updated_at).valueOf(),
       render: (d) => (d ? dayjs(d).format("DD/MM/YYYY HH:mm") : "—"),
+    },
+    /* ======= Cột Trạng thái + Switch ======= */
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      width: 200,
+      align: "center",
+      render: (_, row) => (
+        <Space direction="vertical" size={4} style={{ alignItems: "center" }}>
+          {renderStatusTag(row.status)}
+          <Switch
+            checked={row.status === "published"}
+            disabled={row.status === "deleted"}
+            loading={!!switchLoading[row.id_articles]}
+            onChange={(checked) => handleQuickToggle(row, checked)}
+            checkedChildren="Xuất bản"
+            unCheckedChildren="Nháp"
+          />
+        </Space>
+      ),
+      filters: [
+        { text: STATUS_LABEL.published, value: "published" },
+        { text: STATUS_LABEL.draft, value: "draft" },
+        { text: STATUS_LABEL.deleted, value: "deleted" },
+      ],
+      onFilter: (val, rec) => rec.status === val,
     },
     {
       title: "Thao tác",
@@ -204,13 +267,14 @@ const NewsManagement = () => {
             onChange={(e) => setQ(e.target.value)}
           />
           <Select
-            style={{ width: 180 }}
+            style={{ width: 200 }}
             value={status}
             onChange={setStatus}
             options={[
               { value: "all", label: "Tất cả trạng thái" },
-              { value: "published", label: "Published" },
-              { value: "draft", label: "Draft" },
+              { value: "published", label: STATUS_LABEL.published },
+              { value: "draft", label: STATUS_LABEL.draft },
+              { value: "deleted", label: STATUS_LABEL.deleted },
             ]}
           />
           <Tooltip title="Làm mới dữ liệu">
@@ -233,8 +297,8 @@ const NewsManagement = () => {
         loading={loading}
         columns={columns}
         dataSource={dataSource}
-        pagination={{ pageSize: 10}}
-        scroll={{ x: 1000 }}
+        pagination={{ pageSize: 10 }}
+        scroll={{ x: 1100 }}
       />
 
       {/* Modals */}
@@ -260,7 +324,6 @@ const NewsManagement = () => {
           load();
         }}
       />
-
       <DeleteNewsModal
         open={delOpen}
         article={current}
