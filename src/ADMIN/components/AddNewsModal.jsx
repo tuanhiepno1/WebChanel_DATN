@@ -86,8 +86,8 @@ const AddNewsModal = ({ open, onCancel, onSuccess }) => {
         >
           <Select
             options={[
-              { value: "published", label: "Published" },
-              { value: "draft", label: "Draft" },
+              { value: "published", label: "Xuất bản" },
+              { value: "draft", label: "Nháp" },
             ]}
           />
         </Form.Item>
