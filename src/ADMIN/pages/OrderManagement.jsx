@@ -20,7 +20,7 @@ const TERMINAL = new Set(["delivered", "cancelled"]);
 const getAllowedNextStatuses = (current) => {
   const idx = FLOW.indexOf(current);
   if (idx === -1 || idx >= FLOW.length - 1) return [];
-  return FLOW.slice(idx + 1);
+   return [FLOW[idx + 1]];
 };
 
 const OrderManagement = () => {

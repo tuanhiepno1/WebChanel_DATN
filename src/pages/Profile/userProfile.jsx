@@ -43,6 +43,7 @@ const UserProfile = () => {
   const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
   const canCancel = (status) => status === "ordered";
+  const isDelivered = (status) => (status || "").toLowerCase() === "delivered";
 
   const getOrderTag = (status) => {
     const tagInfo = ORDER_STATUS[status];
@@ -117,7 +118,7 @@ const UserProfile = () => {
             notes: notesRef.current || "Customer requested cancellation",
           });
           message.success(`Đã hủy đơn #${order.id_order}`);
-          // ✅ Cập nhật lại local state về 'cancelled' (không dùng 'cart')
+          // ✅ cập nhật local state về 'cancelled'
           setOrderHistory((prev) =>
             prev.map((o) =>
               o.id_order === order.id_order ? { ...o, status: "cancelled" } : o
@@ -129,6 +130,14 @@ const UserProfile = () => {
       },
     });
   };
+
+  // Lấy id sản phẩm với fallback nhiều kiểu key
+  const getProductId = (product) =>
+    product?.id_product || product?.id || product?._id || product?.productId;
+
+  // helper: build đúng URL chi tiết SP
+const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
+
 
   if (!user) {
     return (
@@ -304,38 +313,72 @@ const UserProfile = () => {
                       </>
                     }
                   >
+                    {/* Danh sách sản phẩm trong đơn */}
                     <List
                       dataSource={order.orderdatails || []}
-                      renderItem={(item) => (
-                        <List.Item>
-                          <List.Item.Meta
-                            avatar={
-                              <img
-                                src={`http://localhost:8000/${item.product.image}`}
-                                alt={item.product.name}
-                                style={{
-                                  width: 60,
-                                  height: 60,
-                                  objectFit: "cover",
-                                  borderRadius: 4,
-                                }}
-                              />
+                      renderItem={(item) => {
+                        const productId = getProductId(item.product);
+                        const delivered = isDelivered(order.status);
+
+                        return (
+                          <List.Item
+                            actions={
+                              delivered && productId
+                                ? [
+                                    <Button
+                                      key="review"
+                                      type="primary"
+                                      size="small"
+                                      onClick={() => navigate(buildProductDetailPath(productId))}
+                                      style={{
+                                        backgroundColor: "#DBB671",
+                                        borderColor: "#DBB671",
+                                        color: "#000",
+                                      }}
+                                    >
+                                      Đánh giá
+                                    </Button>,
+                                  ]
+                                : []
                             }
-                            title={item.product.name}
-                            description={
-                              <>
-                                <div>Số lượng: {item.quantity}</div>
-                                <div>
-                                  Đơn giá: {formatCurrency(item.product.price)}
-                                </div>
-                                <div>
-                                  Loại: {item.product.type || "Không rõ"}
-                                </div>
-                              </>
-                            }
-                          />
-                        </List.Item>
-                      )}
+                          >
+                            <List.Item.Meta
+                              avatar={
+                                <img
+                                  src={
+                                    item?.product?.image
+                                      ? `http://localhost:8000/${item.product.image}`
+                                      : defaultAvatar
+                                  }
+                                  alt={item?.product?.name || "product"}
+                                  style={{
+                                    width: 60,
+                                    height: 60,
+                                    objectFit: "cover",
+                                    borderRadius: 4,
+                                  }}
+                                  onError={(e) => {
+                                    e.currentTarget.src = defaultAvatar;
+                                  }}
+                                />
+                              }
+                              title={item?.product?.name || "Sản phẩm"}
+                              description={
+                                <>
+                                  <div>Số lượng: {item.quantity}</div>
+                                  <div>
+                                    Đơn giá:{" "}
+                                    {formatCurrency(item?.product?.price)}
+                                  </div>
+                                  <div>
+                                    Loại: {item?.product?.type || "Không rõ"}
+                                  </div>
+                                </>
+                              }
+                            />
+                          </List.Item>
+                        );
+                      }}
                     />
                   </Card>
                 )}

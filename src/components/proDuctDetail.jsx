@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Row, Col, Rate, Button, Divider, Spin, Empty, Form, Input, message, Card, Tag } from "antd";
+import { Row, Col, Rate, Button, Divider, Spin, Empty, Form, Input, message, Card } from "antd";
 import {
   ShoppingCartOutlined,
-  PayCircleOutlined,
+  // PayCircleOutlined,  // ❌ bỏ vì không dùng nữa
   ArrowLeftOutlined,
   LoginOutlined,
   SendOutlined,
@@ -32,6 +32,19 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
   const productId =
     product?.id_product ?? product?.id ?? product?._id ?? product?.productId;
 
+  // 👉 helper định dạng giá VND (không áp dụng giảm giá)
+  const formatPriceVND = (val) => {
+    try {
+      const num =
+        typeof val === "string"
+          ? Number(val.replace(/[^\d.-]/g, ""))
+          : Number(val ?? 0);
+      return num.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+    } catch {
+      return val ?? "";
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -53,7 +66,9 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
         if (mounted) setLoadingReviews(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [productId]);
 
   const averageRating = useMemo(() => {
@@ -64,20 +79,6 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
     const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
     return Math.round((sum / reviews.length) * 10) / 10;
   }, [product?.rating, averageFromApi, reviews]);
-
-  const formatVND = (n) =>
-    typeof n === "number" && n > 0
-      ? n.toLocaleString("vi-VN") + "₫"
-      : "Liên hệ";
-
-  // === Giá & giảm giá ===
-  const basePrice = Number(product?.price) || 0;
-  const discountPct = Number(product?.discount) || 0; // % giảm (có thể "6.00")
-  const hasDiscount = basePrice > 0 && discountPct > 0;
-  const finalPrice = hasDiscount
-    ? Math.max(0, Math.round(basePrice * (1 - discountPct / 100)))
-    : basePrice;
-  const saved = hasDiscount ? Math.max(0, basePrice - finalPrice) : 0;
 
   if (!product) return <p style={{ padding: 20 }}>Sản phẩm không tồn tại.</p>;
 
@@ -220,7 +221,7 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
             </Col>
 
             <Col xs={24} md={14}>
-              <h1 style={{ marginBottom: 8 }}>{product.name}</h1>
+              <h1>{product.name}</h1>
               <div
                 style={{
                   height: 2,
@@ -230,40 +231,8 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                 }}
               />
 
-              {/* Giá hiển thị rõ ràng */}
-              <div style={{ marginBottom: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  {hasDiscount && (
-                    <Tag color="red" style={{ fontSize: 14, padding: "2px 8px" }}>
-                      -{discountPct}%
-                    </Tag>
-                  )}
-                  <span style={{ fontSize: 28, fontWeight: 700, color: "#d4380d" }}>
-                    {formatVND(finalPrice)}
-                  </span>
-                  {hasDiscount && (
-                    <span
-                      style={{
-                        color: "#999",
-                        textDecoration: "line-through",
-                        fontSize: 16,
-                      }}
-                    >
-                      {formatVND(basePrice)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Dòng tiết kiệm */}
-                {hasDiscount && (
-                  <div style={{ marginTop: 4, fontSize: 14, color: "#52c41a", fontWeight: 600 }}>
-                    Tiết kiệm {formatVND(saved)} ({discountPct}%)
-                  </div>
-                )}
-              </div>
-
               {/* Điểm và số lượng review */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Rate disabled allowHalf value={Number(averageRating) || 0} />
                 <span style={{ color: "#555" }}>
                   {averageRating ? `${averageRating}/5` : "Chưa có đánh giá"}
@@ -271,8 +240,24 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                 </span>
               </div>
 
+              {/* 👉 Giá (không giảm giá) */}
+              <div style={{ marginTop: 12, marginBottom: 8 }}>
+                <span
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    display: "inline-block",
+                  }}
+                >
+                  {formatPriceVND(
+                    product?.price ?? product?.price_vnd ?? product?.unitPrice
+                  )}
+                </span>
+              </div>
+
               {extraInfo.map((item) => (
-                <p key={item.label} style={{ fontSize: 16, marginBottom: 6 }}>
+                <p key={item.label} style={{ fontSize: 16 }}>
                   <strong>{item.label}:</strong> {item.value}
                 </p>
               ))}
@@ -285,13 +270,14 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                   gap: 12,
                 }}
               >
+                {/* 👉 Đổi màu nút này giống màu nút MUA NGAY cũ (#DBB671, chữ đen) */}
                 <Button
                   icon={<ShoppingCartOutlined />}
                   onClick={handleAddToCart}
                   style={{
                     backgroundColor: "#DBB671",
                     color: "#000",
-                    border: "none",
+                    border: "1px solid #DBB671",
                     height: 48,
                     fontWeight: 500,
                     width: 500,
@@ -299,6 +285,8 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                 >
                   THÊM VÀO GIỎ HÀNG
                 </Button>
+
+                {/* ❌ Bỏ nút MUA NGAY */}
               </div>
             </Col>
           </Row>
@@ -403,6 +391,7 @@ const ProductDetailLayout = ({ product, extraInfo = [] }) => {
                   alignItems: "flex-start",
                 }}
               >
+                {/* avatar theo chữ cái đầu */}
                 <div
                   style={{
                     width: 48,
