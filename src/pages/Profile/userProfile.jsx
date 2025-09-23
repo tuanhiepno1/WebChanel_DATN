@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from "react";
 import {
   Card,
   Descriptions,
@@ -11,6 +12,8 @@ import {
   message,
   Modal,
   Input,
+  Radio,
+  Popconfirm,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -22,23 +25,36 @@ import {
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import React, { useEffect, useState } from "react";
+
 import { fetchOrderHistoryByUserId, cancelOrder } from "@api/userApi";
+import {
+  getUserAddresses,
+  createUserAddress,
+  updateUserAddress,
+  deleteUserAddress,
+} from "@api/userApi";
 import { ORDER_STATUS } from "@utils/orderStatus";
 import endPoints from "@routes/router";
 import HeaderComponent from "@components/Header";
 import FooterComponent from "@components/Footer";
 import EditUserModal from "@components/EditUserModal";
 import ChangePasswordModal from "@components/ChangePasswordModal";
+import AddressModal from "@components/AddressModal";
 
 const { Text } = Typography;
 
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
+
   const [orderHistory, setOrderHistory] = useState([]);
   const [editVisible, setEditVisible] = useState(false);
   const [changePasswordVisible, setChangePasswordVisible] = useState(false);
+
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [addrModalOpen, setAddrModalOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
 
   const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
@@ -69,28 +85,137 @@ const UserProfile = () => {
     }).format(number);
   };
 
+  // 🔧 Helper an toàn lấy ID địa chỉ
+  const getAddressId = (addr) =>
+    addr?.id ?? addr?.address_id ?? addr?.id_address ?? addr?._id ?? null;
+
+  // ---- Load dữ liệu
   useEffect(() => {
     const loadOrderHistory = async () => {
       if (!user?.id_user) return;
-
       const raw = await fetchOrderHistoryByUserId(user.id_user);
-
       const orders = Array.isArray(raw?.data)
         ? raw.data
         : Array.isArray(raw)
         ? raw
         : [];
-
       const filtered = orders.filter(
         (o) => (o?.status || "").toLowerCase() !== "cart"
       );
-
       setOrderHistory(filtered);
     };
 
+    const loadAddresses = async () => {
+      if (!user?.id_user) return;
+      const res = await getUserAddresses(user.id_user);
+      if (res.ok) {
+        const list = res.data?.addresses || [];
+        setAddresses(list);
+        const def = list.find(
+          (a) => (a.status || "").toLowerCase() === "default"
+        );
+        setSelectedAddressId(
+          def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
+        );
+      } else {
+        message.error(res.error || "Không tải được địa chỉ");
+      }
+    };
+
     loadOrderHistory();
+    loadAddresses();
   }, [user?.id_user]);
 
+  // ---- Address handlers
+  const handleSelectAddress = async (addressId) => {
+    setSelectedAddressId(addressId);
+    // optimistic UI: chỉ 1 default
+    setAddresses((prev) =>
+      prev.map((a) => {
+        const id = getAddressId(a);
+        return { ...a, status: id === addressId ? "default" : "none" };
+      })
+    );
+    const res = await updateUserAddress(addressId, { status: "default" });
+    if (!res.ok) {
+      message.error(res.error || "Đặt mặc định thất bại");
+    } else {
+      message.success("Đã đặt làm mặc định");
+    }
+  };
+
+  const openAddAddress = () => {
+    setEditingAddress(null);
+    setAddrModalOpen(true);
+  };
+
+  const submitAddAddress = async (payload) => {
+    const res = await createUserAddress(user.id_user, payload);
+    if (res.ok) {
+      message.success("Đã thêm địa chỉ");
+      const r = await getUserAddresses(user.id_user);
+      if (r.ok) {
+        const list = r.data?.addresses || [];
+        setAddresses(list);
+        const def = list.find(
+          (a) => (a.status || "").toLowerCase() === "default"
+        );
+        setSelectedAddressId(
+          def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
+        );
+      }
+      setAddrModalOpen(false);
+    } else {
+      message.error(res.error || "Thêm địa chỉ thất bại");
+    }
+  };
+
+  const openEditAddress = (addr) => {
+    setEditingAddress(addr);
+    setAddrModalOpen(true);
+  };
+
+  const submitEditAddress = async (payload) => {
+    const res = await updateUserAddress(getAddressId(editingAddress), payload);
+    if (res.ok) {
+      message.success("Đã cập nhật địa chỉ");
+      const r = await getUserAddresses(user.id_user);
+      if (r.ok) {
+        const list = r.data?.addresses || [];
+        setAddresses(list);
+        const def = list.find(
+          (a) => (a.status || "").toLowerCase() === "default"
+        );
+        setSelectedAddressId(
+          def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
+        );
+      }
+      setAddrModalOpen(false);
+      setEditingAddress(null);
+    } else {
+      message.error(res.error || "Cập nhật thất bại");
+    }
+  };
+
+  const handleDeleteAddress = async (addr) => {
+    const id = getAddressId(addr);
+    const res = await deleteUserAddress(id);
+    if (res.ok) {
+      message.success("Đã xóa địa chỉ");
+      setAddresses((prev) => prev.filter((a) => getAddressId(a) !== id));
+      setSelectedAddressId((prevSelected) => {
+        if (prevSelected === id) {
+          const nextList = addresses.filter((a) => getAddressId(a) !== id);
+          return nextList[0] ? getAddressId(nextList[0]) : null;
+        }
+        return prevSelected;
+      });
+    } else {
+      message.error(res.error || "Xóa địa chỉ thất bại");
+    }
+  };
+
+  // ---- Orders
   const handleCancelOrder = (order) => {
     if (!canCancel(order.status)) {
       message.warning("Chỉ được hủy khi đơn đang ở trạng thái 'Đã đặt hàng'.");
@@ -118,7 +243,6 @@ const UserProfile = () => {
             notes: notesRef.current || "Customer requested cancellation",
           });
           message.success(`Đã hủy đơn #${order.id_order}`);
-          // ✅ cập nhật local state về 'cancelled'
           setOrderHistory((prev) =>
             prev.map((o) =>
               o.id_order === order.id_order ? { ...o, status: "cancelled" } : o
@@ -131,13 +255,11 @@ const UserProfile = () => {
     });
   };
 
-  // Lấy id sản phẩm với fallback nhiều kiểu key
   const getProductId = (product) =>
     product?.id_product || product?.id || product?._id || product?.productId;
 
-  // helper: build đúng URL chi tiết SP
-const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
-
+  const buildProductDetailPath = (productId) =>
+    `/category/san-pham/${productId}`;
 
   if (!user) {
     return (
@@ -197,7 +319,6 @@ const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
                   size={150}
                   style={{ marginBottom: 16 }}
                 />
-
                 <div style={{ fontSize: 18, fontWeight: 600 }}>
                   {user?.username}
                 </div>
@@ -255,6 +376,90 @@ const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
             </Row>
           </Card>
 
+          {/* Địa chỉ giao hàng */}
+          <Card
+            title="Địa chỉ giao hàng"
+            style={{ marginBottom: 24 }}
+            extra={
+              <Button
+                type="primary"
+                onClick={openAddAddress}
+                style={{
+                  backgroundColor: "#DBB671",
+                  borderColor: "#DBB671",
+                  color: "#000",
+                }}
+              >
+                Thêm địa chỉ
+              </Button>
+            }
+          >
+            {addresses.length === 0 ? (
+              <Text type="secondary">Chưa có địa chỉ. Hãy thêm địa chỉ mới.</Text>
+            ) : (
+              <Radio.Group
+                value={selectedAddressId}
+                onChange={(e) => handleSelectAddress(e.target.value)}
+                style={{ width: "100%" }}
+              >
+                <List
+                  dataSource={addresses}
+                  renderItem={(addr) => {
+                    const id = getAddressId(addr);
+                    const isDefault =
+                      (addr.status || "").toLowerCase() === "default";
+                    return (
+                      <List.Item
+                        key={id}
+                        actions={[
+                          <Button
+                            key="edit"
+                            type="link"
+                            onClick={() => openEditAddress(addr)}
+                            style={{ paddingInline: 0 }}
+                          >
+                            Sửa
+                          </Button>,
+                          <Popconfirm
+                            key="del"
+                            title="Xoá địa chỉ này?"
+                            okText="Xoá"
+                            cancelText="Không"
+                            onConfirm={() => handleDeleteAddress(addr)}
+                          >
+                            <Button type="link" danger style={{ paddingInline: 0 }}>
+                              Xoá
+                            </Button>
+                          </Popconfirm>,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          avatar={<Radio value={id} />}
+                          title={
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <span style={{ fontWeight: 600 }}>
+                                {addr.recipient_name} • {addr.phone}
+                              </span>
+                              {isDefault && <Tag color="green">Mặc định</Tag>}
+                            </div>
+                          }
+                          description={<span>{addr.address_line}</span>}
+                        />
+                      </List.Item>
+                    );
+                  }}
+                />
+              </Radio.Group>
+            )}
+          </Card>
+
           {/* Lịch sử đơn hàng */}
           <Card
             title={
@@ -276,16 +481,13 @@ const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
                     style={{ marginBottom: 20 }}
                     title={
                       <span>
-                        Đơn hàng #{order.id_order} - {getOrderTag(order.status)}{" "}
-                        - Ngày: {formatDate(order.order_date)}
+                        Đơn hàng #{order.id_order} - {getOrderTag(order.status)} - Ngày:{" "}
+                        {formatDate(order.order_date)}
                       </span>
                     }
                     extra={
                       <>
-                        <Text
-                          strong
-                          style={{ color: "#d4380d", marginRight: 12 }}
-                        >
+                        <Text strong style={{ color: "#d4380d", marginRight: 12 }}>
                           Tổng: {formatCurrency(order.total)}
                         </Text>
 
@@ -313,13 +515,11 @@ const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
                       </>
                     }
                   >
-                    {/* Danh sách sản phẩm trong đơn */}
                     <List
                       dataSource={order.orderdatails || []}
                       renderItem={(item) => {
                         const productId = getProductId(item.product);
                         const delivered = isDelivered(order.status);
-
                         return (
                           <List.Item
                             actions={
@@ -329,7 +529,9 @@ const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
                                       key="review"
                                       type="primary"
                                       size="small"
-                                      onClick={() => navigate(buildProductDetailPath(productId))}
+                                      onClick={() =>
+                                        navigate(buildProductDetailPath(productId))
+                                      }
                                       style={{
                                         backgroundColor: "#DBB671",
                                         borderColor: "#DBB671",
@@ -366,13 +568,8 @@ const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
                               description={
                                 <>
                                   <div>Số lượng: {item.quantity}</div>
-                                  <div>
-                                    Đơn giá:{" "}
-                                    {formatCurrency(item?.product?.price)}
-                                  </div>
-                                  <div>
-                                    Loại: {item?.product?.type || "Không rõ"}
-                                  </div>
+                                  <div>Đơn giá: {formatCurrency(item?.product?.price)}</div>
+                                  <div>Loại: {item?.product?.type || "Không rõ"}</div>
                                 </>
                               }
                             />
@@ -397,6 +594,16 @@ const buildProductDetailPath = (productId) => `/category/san-pham/${productId}`;
             visible={changePasswordVisible}
             onCancel={() => setChangePasswordVisible(false)}
             userId={user.id_user}
+          />
+
+          <AddressModal
+            open={addrModalOpen}
+            onCancel={() => {
+              setAddrModalOpen(false);
+              setEditingAddress(null);
+            }}
+            initialValues={editingAddress}
+            onSubmit={editingAddress ? submitEditAddress : submitAddAddress}
           />
         </div>
       </div>

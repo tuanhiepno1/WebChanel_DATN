@@ -122,3 +122,35 @@ export const cancelOrder = async (id_user, { id_order, notes }) => {
   });
   return res.data; // { status: "success", order: {...} }
 };
+
+
+const handleRequest = async (promise) => {
+  try {
+    const res = await promise;
+    return { ok: true, data: res.data, error: null };
+  } catch (err) {
+    // Nếu server có trả về message
+    const msg = err?.response?.data?.message || err.message || "Có lỗi xảy ra";
+    return { ok: false, data: null, error: msg };
+  }
+};
+
+// GET /users/{id}/addresses
+export const getUserAddresses = (userId) => {
+  return handleRequest(axiosClient.get(`/users/${userId}/addresses`));
+};
+
+// POST /users/{id}/addresses
+export const createUserAddress = (userId, payload) => {
+  return handleRequest(axiosClient.post(`/users/${userId}/addresses`, payload));
+};
+
+// PUT /addresses/{address_id}
+export const updateUserAddress = (addressId, payload) => {
+  return handleRequest(axiosClient.put(`/addresses/${addressId}`, payload));
+};
+
+// DELETE /addresses/{address_id}
+export const deleteUserAddress = (addressId) => {
+  return handleRequest(axiosClient.delete(`/addresses/${addressId}`));
+};

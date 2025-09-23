@@ -10,8 +10,6 @@ import {
   message,
   Tag,
   Button,
-  Alert,
-  Space,
   Typography,
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
@@ -22,11 +20,37 @@ import { buildVietQRUrl } from "@utils/vietqr";
 
 const { Text } = Typography;
 
-// Helper đặt ngoài component để tránh tạo lại mỗi render
-const extractPaymentCode = (text) => {
+/** Ép input về chuỗi rồi regex an toàn */
+const extractPaymentCode = (input) => {
+  if (input == null) return null;
+
+  let text = "";
+  if (typeof input === "string") {
+    text = input;
+  } else if (typeof input === "object") {
+    text = input.address_line || input.address || input.note || "";
+    if (!text) {
+      try {
+        text = JSON.stringify(input);
+      } catch {
+        text = "";
+      }
+    }
+  } else {
+    text = String(input);
+  }
+
   if (!text) return null;
-  const m = text.match(/mã\s*ck\s*:\s*([A-Z0-9_]+)/i);
+  const m = String(text).match(/m[ãa]\s*ck\s*[:\-]?\s*([A-Z0-9_]+)/i);
   return m?.[1] || null;
+};
+
+/** Lấy giá trị đầu tiên có dữ liệu (không null/undefined/"") */
+const pickFirst = (...vals) => {
+  for (const v of vals) {
+    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+  }
+  return null;
 };
 
 const OrderDetailPage = () => {
@@ -34,6 +58,13 @@ const OrderDetailPage = () => {
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const PAYMENT_STATUS = {
+    paid: { label: "Đã thanh toán", color: "green" },
+    pending: { label: "Chưa thanh toán", color: "gold" },
+    unpaid: { label: "Chưa thanh toán", color: "gold" }, // BE đôi khi trả 'unpaid'
+    failed: { label: "Thanh toán thất bại", color: "red" },
+  };
 
   // Load đơn hàng
   useEffect(() => {
@@ -50,23 +81,58 @@ const OrderDetailPage = () => {
     fetchOrder();
   }, [id]);
 
-  // Nếu đã paid thì dọn localStorage để tránh hiển thị nhầm thông tin VietQR cũ
+  // Nếu đã PAID thì dọn cache VietQR
   useEffect(() => {
-    if (order?.status === "paid") {
+    if (
+      order?.payment_status &&
+      String(order.payment_status).toLowerCase() === "paid"
+    ) {
       localStorage.removeItem("lastVietQRCode");
       localStorage.removeItem("lastVietQRAmount");
     }
-  }, [order?.status]);
+  }, [order?.payment_status]);
 
   const isVietQR = order?.payment_method === "vietqr";
 
-  const embeddedCode = extractPaymentCode(order?.address);
-  const lsCode = localStorage.getItem("lastVietQRCode");
-  const paymentCode = isVietQR ? (embeddedCode || lsCode) : null;
+  // ---- Chuẩn hoá tên/SĐT/địa chỉ hiển thị ----
+  const customerName =
+    pickFirst(
+      order?.customer_name,
+      order?.customerName,
+      order?.recipient_name,
+      order?.recipientName,
+      order?.address?.recipient_name,
+      order?.address?.name,
+      order?.user?.username,
+      order?.user?.name
+    ) || "Không rõ";
 
-  // Ưu tiên tổng tiền từ BE; nếu không có (trường hợp đơn vừa đặt), fallback localStorage
+  const customerPhone =
+    pickFirst(
+      order?.phone,
+      order?.customer_phone,
+      order?.recipient_phone,
+      order?.address?.phone,
+      order?.user?.phone
+    ) || "Không rõ";
+
+  const addressText =
+    typeof order?.address === "string"
+      ? order.address
+      : pickFirst(order?.address?.full, order?.address?.address_line) ||
+        (order?.address ? JSON.stringify(order.address) : "—");
+
+  const payKey = String(order?.payment_status || "pending").toLowerCase();
+  const payInfo = PAYMENT_STATUS[payKey] || PAYMENT_STATUS.pending;
+
+  // ---- VietQR ----
+  const embeddedCode = extractPaymentCode(order?.address);
+  const lsCode = localStorage.getItem("lastVietQRCode") || null;
+  const paymentCode = isVietQR ? embeddedCode || lsCode : null;
+
+  const beTotal = Number(order?.total ?? order?.total_amount ?? 0);
   const lsAmt = Number(localStorage.getItem("lastVietQRAmount") || 0);
-  const amountForQR = Number(order?.total || 0) > 0 ? Number(order?.total) : lsAmt;
+  const amountForQR = beTotal > 0 ? beTotal : lsAmt;
 
   const vietqrUrl =
     isVietQR && paymentCode && amountForQR > 0
@@ -88,18 +154,25 @@ const OrderDetailPage = () => {
       title: "Sản phẩm",
       dataIndex: ["product", "name"],
       key: "name",
+      render: (name) => name || <Text type="secondary">Không rõ</Text>,
     },
     {
       title: "Ảnh",
       dataIndex: ["product", "image"],
       key: "image",
-      render: (img) => <Image src={`http://localhost:8000/${img}`} width={80} />,
+      render: (img) =>
+        img ? (
+          <Image src={`http://localhost:8000/${img}`} width={80} />
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
     },
     {
       title: "Giá",
       dataIndex: ["product", "price"],
       key: "price",
-      render: (price) => `${Number(price).toLocaleString()}₫`,
+      render: (price) =>
+        price != null ? `${Number(price).toLocaleString()}₫` : "—",
     },
     {
       title: "Số lượng",
@@ -109,8 +182,11 @@ const OrderDetailPage = () => {
     {
       title: "Tổng",
       key: "total",
-      render: (_, record) =>
-        `${(Number(record.quantity) * Number(record.product.price)).toLocaleString()}₫`,
+      render: (_, record) => {
+        const p = Number(record?.product?.price || 0);
+        const q = Number(record?.quantity || 0);
+        return `${(p * q).toLocaleString()}₫`;
+      },
     },
   ];
 
@@ -136,19 +212,24 @@ const OrderDetailPage = () => {
         <Card title={`Chi tiết đơn hàng #${order.id_order}`} bordered>
           <Descriptions bordered column={1}>
             <Descriptions.Item label="Khách hàng">
-              {order.customer_name}
+              {customerName}
             </Descriptions.Item>
-            <Descriptions.Item label="SĐT">{order.phone}</Descriptions.Item>
-            <Descriptions.Item label="Địa chỉ">{order.address}</Descriptions.Item>
+            <Descriptions.Item label="SĐT">
+              {String(customerPhone)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Địa chỉ">{addressText}</Descriptions.Item>
             <Descriptions.Item label="Phương thức thanh toán">
               {order.payment_method === "cod"
                 ? "Thanh toán khi nhận hàng"
                 : order.payment_method}
             </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái thanh toán">
+              <Tag color={payInfo.color}>{payInfo.label}</Tag>
+            </Descriptions.Item>
             <Descriptions.Item label="Ngày đặt hàng">
               {order.order_date}
             </Descriptions.Item>
-            <Descriptions.Item label="Trạng thái">
+            <Descriptions.Item label="Trạng thái đơn">
               <Tag color={ORDER_STATUS[order.status]?.color || "default"}>
                 {ORDER_STATUS[order.status]?.label || order.status}
               </Tag>
@@ -160,16 +241,43 @@ const OrderDetailPage = () => {
               </Descriptions.Item>
             )}
             <Descriptions.Item label="Tổng tiền">
-              <strong>{Number(order.total).toLocaleString()}₫</strong>
+              <strong>
+                {Number(
+                  order.total ?? order.total_amount ?? 0
+                ).toLocaleString()}
+                ₫
+              </strong>
             </Descriptions.Item>
-          </Descriptions>
 
+            {/* Hiển thị VietQR (nếu đơn VietQR & cần thanh toán) */}
+            {isVietQR && paymentCode && amountForQR > 0 && (
+              <Descriptions.Item label="Thanh toán VietQR">
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <Text>
+                    Mã thanh toán: <b>{paymentCode}</b>
+                  </Text>
+                  <Text>
+                    Số tiền: <b>{amountForQR.toLocaleString()}₫</b>
+                  </Text>
+                  <a href={vietqrUrl} target="_blank" rel="noreferrer">
+                    Mở mã VietQR
+                  </a>
+                </div>
+              </Descriptions.Item>
+            )}
+          </Descriptions>
 
           <h3 style={{ marginTop: 24 }}>Danh sách sản phẩm</h3>
           <Table
-            dataSource={order.order_details}
+            dataSource={order.order_details || order.orderdatails || []}
             columns={columns}
-            rowKey="id_order_detail"
+            rowKey={(r) =>
+              r.id_order_detail ||
+              r.id ||
+              `${r?.product?.id || ""}_${r?.quantity || ""}`
+            }
             pagination={false}
           />
         </Card>

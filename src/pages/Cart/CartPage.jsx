@@ -21,6 +21,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { removeFromCart, updateQuantity, fetchCart } from "@redux/cartSlice";
 import Header from "@components/Header";
 import Footer from "@components/Footer";
+// (Tuỳ chọn) Form nhập tay nếu bạn muốn giữ
 import DeliveryInfoForm from "@components/DeliveryInfoForm";
 import CheckoutModal from "@components/CheckoutModal";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +29,7 @@ import ModalVoucher from "@components/ModalVoucher";
 import VietQRPayModal from "@components/VietQRPayModal";
 import { fetchVouchers, checkoutAPI, applyVoucherAPI } from "@api/cartApi";
 import { fetchOrderHistoryByUserId } from "@api/userApi";
+import AddressPickerModal from "@components/AddressPickerModal";
 
 const CartPage = () => {
   const dispatch = useDispatch();
@@ -39,17 +41,31 @@ const CartPage = () => {
   const [vietqrOpen, setVietqrOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("vnpay");
   const [selectedIds, setSelectedIds] = useState([]);
-  const [openDeliveryModal, setOpenDeliveryModal] = useState(false);
+  const [openDeliveryModal, setOpenDeliveryModal] = useState(false); // Modal nhập tay (tuỳ chọn)
   const [checkoutVisible, setCheckoutVisible] = useState(false);
   const [vouchers, setVouchers] = useState([]);
   const [voucherModalVisible, setVoucherModalVisible] = useState(false);
+
+  // Địa chỉ giao hàng hiển thị ở card — thêm addressId để gửi cho BE
   const [deliveryInfo, setDeliveryInfo] = useState({
     name: user?.username || "",
     phone: user?.phone || "",
     address: user?.address || "",
+    addressId: null, // ✅ rất quan trọng
   });
   const [tempDeliveryInfo, setTempDeliveryInfo] = useState(deliveryInfo);
   const [selectedVoucherId, setSelectedVoucherId] = useState(null);
+
+  // Modal chọn địa chỉ giao hàng
+  const [addrPickerOpen, setAddrPickerOpen] = useState(false);
+
+  // Helper chọn payment_status theo chuẩn DB (paid|pending|failed)
+  const resolvePaymentStatus = (method, { confirmed = false } = {}) => {
+    if (method === "cod") return "pending";
+    if (method === "vietqr") return confirmed ? "paid" : "pending";
+    if (method === "vnpay") return confirmed ? "paid" : "pending";
+    return "pending";
+  };
 
   useEffect(() => {
     if (user?.id) {
@@ -299,7 +315,7 @@ const CartPage = () => {
                   borderColor: "#DBB671",
                   color: "#000",
                 }}
-                onClick={() => setOpenDeliveryModal(true)}
+                onClick={() => setAddrPickerOpen(true)}
               >
                 THAY ĐỔI
               </Button>
@@ -372,12 +388,15 @@ const CartPage = () => {
               <Button
                 block
                 onClick={async () => {
+                  if (!deliveryInfo.addressId) {
+                    message.warning("Vui lòng chọn địa chỉ giao hàng.");
+                    setAddrPickerOpen(true);
+                    return;
+                  }
                   if (paymentMethod === "vietqr") {
-                    // Mở modal VietQR, KH chuyển khoản xong sẽ bấm "Tôi đã chuyển khoản"
                     setVietqrOpen(true);
                     return;
                   }
-                  // Giữ nguyên luồng cũ cho COD/VNPay của bạn
                   setCheckoutVisible(true);
                 }}
                 style={{
@@ -394,13 +413,20 @@ const CartPage = () => {
         </Row>
       </div>
 
+      {/* (Tuỳ chọn) Modal nhập tay - nếu muốn giữ */}
       <Modal
         title="Chỉnh sửa thông tin nhận hàng"
         open={openDeliveryModal}
         onCancel={() => setOpenDeliveryModal(false)}
         onOk={() => {
           form.validateFields().then(() => {
-            setDeliveryInfo(tempDeliveryInfo);
+            setDeliveryInfo((prev) => ({
+              ...prev,
+              name: tempDeliveryInfo.name,
+              phone: tempDeliveryInfo.phone,
+              address: tempDeliveryInfo.address,
+              addressId: null, // nhập tay => không có id
+            }));
             setOpenDeliveryModal(false);
           });
         }}
@@ -411,6 +437,24 @@ const CartPage = () => {
           form={form}
         />
       </Modal>
+
+      {/* Modal chọn địa chỉ giao hàng */}
+      <AddressPickerModal
+        open={addrPickerOpen}
+        userId={user?.id}
+        onClose={() => setAddrPickerOpen(false)}
+        onChoose={(addr) => {
+          setDeliveryInfo((prev) => ({
+            ...prev,
+            name: addr.name,
+            phone: addr.phone,
+            address: addr.address,
+            addressId: addr.addressId, // ✅ lưu id để gửi BE
+          }));
+          setAddrPickerOpen(false);
+        }}
+      />
+
       <ModalVoucher
         visible={voucherModalVisible}
         onClose={() => setVoucherModalVisible(false)}
@@ -420,7 +464,7 @@ const CartPage = () => {
         shippingFee={shippingFee}
         selectedVoucherId={selectedVoucherId}
         onVoucherApplied={handleApplyVoucher}
-        userId={user.id}
+        userId={user?.id}
       />
 
       <CheckoutModal
@@ -428,23 +472,34 @@ const CartPage = () => {
         onCancel={() => setCheckoutVisible(false)}
         onConfirm={async () => {
           try {
+            if (!deliveryInfo.addressId) {
+              message.warning("Vui lòng chọn địa chỉ giao hàng.");
+              setCheckoutVisible(false);
+              setAddrPickerOpen(true);
+              return;
+            }
+
+            // ✅ Gửi CẢ 2 key: address_id & id_address để chắc chắn khớp BE
             await checkoutAPI(user.id, {
               customer_name: deliveryInfo.name,
               phone: deliveryInfo.phone,
-              address: deliveryInfo.address,
+              address: deliveryInfo.address, // nếu BE vẫn muốn lưu text
+              address_id: deliveryInfo.addressId,
+              id_address: deliveryInfo.addressId,
               payment_method: paymentMethod,
               voucher_id: selectedVoucherId,
               total_price: finalTotal,
+              payment_status: resolvePaymentStatus(paymentMethod, {
+                confirmed: false,
+              }),
             });
 
             setCheckoutVisible(false);
             message.success("Đặt hàng thành công!");
             dispatch(fetchCart(user.id));
-
-            // 👉 Gọi lấy đơn hàng mới nhất
             const orderHistory = await fetchOrderHistoryByUserId(user.id);
             if (orderHistory && orderHistory.length > 0) {
-              const latestOrder = orderHistory[0]; // giả định BE trả danh sách mới nhất trước
+              const latestOrder = orderHistory[0];
               navigate(`/order/${latestOrder.id_order}`);
             } else {
               navigate("/order-history");
@@ -468,32 +523,39 @@ const CartPage = () => {
         userId={user?.id}
         onConfirmTransferred={async ({ paymentCode, amount }) => {
           try {
+            if (!deliveryInfo.addressId) {
+              message.warning("Vui lòng chọn địa chỉ giao hàng.");
+              setVietqrOpen(false);
+              setAddrPickerOpen(true);
+              return;
+            }
+
             const payload = {
               customer_name: deliveryInfo.name,
               phone: deliveryInfo.phone,
-              
               address: `${deliveryInfo.address} | MÃ CK: ${paymentCode}`,
+              address_id: deliveryInfo.addressId, // ✅ gửi id
+              id_address: deliveryInfo.addressId,  // ✅ gửi thêm khoá dự phòng
               payment_method: "vietqr",
               voucher_id: selectedVoucherId,
               total_price: amount,
+              payment_status: resolvePaymentStatus("vietqr", {
+                confirmed: false, // đổi true nếu muốn đánh dấu paid ngay
+              }),
             };
 
             const res = await checkoutAPI(user.id, payload);
 
-          
             const createdId =
               res?.data?.id_order || res?.id_order || res?.order?.id_order;
 
-            message.success(
-              "Đặt hàng thành công! Đang chuyển đến chi tiết đơn…"
-            );
+            message.success("Đặt hàng thành công! Đang chuyển đến chi tiết đơn…");
             setVietqrOpen(false);
             dispatch(fetchCart(user.id));
 
             if (createdId) {
               navigate(`/order/${createdId}`);
             } else {
-              // Fallback: lấy danh sách đơn và chọn đơn mới nhất
               const orderHistory = await fetchOrderHistoryByUserId(user.id);
               if (orderHistory && orderHistory.length > 0) {
                 navigate(`/order/${orderHistory[0].id_order}`);
