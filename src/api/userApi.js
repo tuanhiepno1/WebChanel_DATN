@@ -150,6 +150,19 @@ export const updateUserAddress = (addressId, payload) => {
 };
 
 // DELETE /addresses/{address_id}
-export const deleteUserAddress = (addressId) => {
-  return handleRequest(axiosClient.delete(`/addresses/${addressId}`));
+export const deleteUserAddress = async (addressId) => {
+  try {
+    const res = await axiosClient.delete(`/addresses/${addressId}`);
+    return { ok: true, data: res.data ?? null, status: res.status };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err?.response?.data?.message ||
+        err?.response?.statusText ||
+        err?.message ||
+        "Xoá địa chỉ thất bại",
+      status: err?.response?.status,
+    };
+  }
 };

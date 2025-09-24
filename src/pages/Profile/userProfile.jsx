@@ -1,3 +1,4 @@
+// src/pages/UserProfile.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Card,
@@ -44,9 +45,9 @@ const { Text } = Typography;
 
 const ASSET_BASE = (
   import.meta.env.VITE_ASSET_BASE_URL || "http://localhost:8000/"
-).replace(/\/?$/, "/"); // luôn có dấu / ở cuối
+).replace(/\/?$/, "/");
 
-/** Thử lần lượt nhiều biến thể URL cho 1 path tương đối */
+/** Avatar thông minh: thử nhiều URL khi BE trả path tương đối */
 const SmartAvatar = ({ path, size = 150, alt = "avatar", fallback, style }) => {
   const [idx, setIdx] = useState(0);
 
@@ -54,17 +55,14 @@ const SmartAvatar = ({ path, size = 150, alt = "avatar", fallback, style }) => {
     if (!path) return [fallback];
     if (/^https?:\/\//i.test(path)) return [path, fallback];
 
-    const p = String(path).replace(/^\/+/, ""); // bỏ / đầu
-
-    // Các khả năng phổ biến với Laravel
+    const p = String(path).replace(/^\/+/, "");
     const list = [
-      `${ASSET_BASE}${p}`, // http://localhost:8000/uploads/...
-      `${ASSET_BASE}storage/${p}`, // http://localhost:8000/storage/uploads/...
-      `${ASSET_BASE}${p.replace(/^uploads\//, "storage/")}`, // http://localhost:8000/storage/...
+      `${ASSET_BASE}${p}`,
+      `${ASSET_BASE}storage/${p}`,
+      `${ASSET_BASE}${p.replace(/^uploads\//, "storage/")}`,
       fallback,
     ];
-
-    return [...new Set(list)]; // loại trùng
+    return [...new Set(list)];
   }, [path, fallback]);
 
   return (
@@ -75,10 +73,10 @@ const SmartAvatar = ({ path, size = 150, alt = "avatar", fallback, style }) => {
       style={style}
       onError={() => {
         if (idx < candidates.length - 1) {
-          setIdx(idx + 1); // thử URL tiếp theo
-          return false; // chặn antd đánh dấu hỏng để còn thử tiếp
+          setIdx(idx + 1);
+          return false;
         }
-        return true; // hết phương án → để antd fallback
+        return true;
       }}
     />
   );
@@ -97,7 +95,8 @@ const UserProfile = () => {
   const [addrModalOpen, setAddrModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
 
-  const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+  const defaultAvatar =
+    "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
   const canCancel = (status) => status === "ordered";
   const isDelivered = (status) => (status || "").toLowerCase() === "delivered";
@@ -130,18 +129,28 @@ const UserProfile = () => {
   const getAddressId = (addr) =>
     addr?.id ?? addr?.address_id ?? addr?.id_address ?? addr?._id ?? null;
 
-  // ✅ Lấy địa chỉ mặc định (nếu chưa có thì fallback theo radio đang chọn)
+  // ✅ Danh sách địa chỉ hiển thị (lọc bỏ deleted)
+  const visibleAddresses = useMemo(
+    () =>
+      (addresses || []).filter(
+        (a) => (a?.status || "").toLowerCase() !== "deleted"
+      ),
+    [addresses]
+  );
+
+  // ✅ Lấy địa chỉ mặc định từ danh sách hiển thị
   const defaultAddr = useMemo(() => {
-    if (!Array.isArray(addresses) || addresses.length === 0) return null;
-    let def = addresses.find(
+    if (visibleAddresses.length === 0) return null;
+    let def = visibleAddresses.find(
       (a) => (a.status || "").toLowerCase() === "default"
     );
     if (!def && selectedAddressId) {
       def =
-        addresses.find((a) => getAddressId(a) === selectedAddressId) || null;
+        visibleAddresses.find((a) => getAddressId(a) === selectedAddressId) ??
+        null;
     }
     return def;
-  }, [addresses, selectedAddressId]);
+  }, [visibleAddresses, selectedAddressId]);
 
   // ---- Load dữ liệu
   useEffect(() => {
@@ -165,11 +174,15 @@ const UserProfile = () => {
       if (res.ok) {
         const list = res.data?.addresses || [];
         setAddresses(list);
-        const def = list.find(
+        // 🔎 chọn ID hiển thị (không lấy item deleted)
+        const visible = list.filter(
+          (a) => (a?.status || "").toLowerCase() !== "deleted"
+        );
+        const def = visible.find(
           (a) => (a.status || "").toLowerCase() === "default"
         );
         setSelectedAddressId(
-          def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
+          def ? getAddressId(def) : visible[0] ? getAddressId(visible[0]) : null
         );
       } else {
         message.error(res.error || "Không tải được địa chỉ");
@@ -180,12 +193,26 @@ const UserProfile = () => {
     loadAddresses();
   }, [user?.id_user]);
 
+  // 🩹 Nếu selectedAddressId trỏ vào item đã bị xoá/ẩn → tự chọn item đầu tiên còn hiển thị
+  useEffect(() => {
+    if (
+      selectedAddressId &&
+      !visibleAddresses.some((a) => getAddressId(a) === selectedAddressId)
+    ) {
+      setSelectedAddressId(
+        visibleAddresses[0] ? getAddressId(visibleAddresses[0]) : null
+      );
+    }
+  }, [visibleAddresses, selectedAddressId]);
+
   // ---- Address handlers
   const handleSelectAddress = async (addressId) => {
     setSelectedAddressId(addressId);
-    // ✅ optimistic UI: chỉ để 1 default, các địa chỉ khác là "non-default"
+    // ✅ optimistic UI: chỉ để 1 default, bỏ qua item deleted
     setAddresses((prev) =>
       prev.map((a) => {
+        const isDeleted = (a?.status || "").toLowerCase() === "deleted";
+        if (isDeleted) return a;
         const id = getAddressId(a);
         return { ...a, status: id === addressId ? "default" : "non-default" };
       })
@@ -212,11 +239,14 @@ const UserProfile = () => {
       if (r.ok) {
         const list = r.data?.addresses || [];
         setAddresses(list);
-        const def = list.find(
+        const visible = list.filter(
+          (a) => (a?.status || "").toLowerCase() !== "deleted"
+        );
+        const def = visible.find(
           (a) => (a.status || "").toLowerCase() === "default"
         );
         setSelectedAddressId(
-          def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
+          def ? getAddressId(def) : visible[0] ? getAddressId(visible[0]) : null
         );
       }
       setAddrModalOpen(false);
@@ -234,16 +264,19 @@ const UserProfile = () => {
     const res = await updateUserAddress(getAddressId(editingAddress), payload);
     if (res.ok) {
       message.success("Đã cập nhật địa chỉ");
-      // Refetch để đồng bộ trạng thái default
+      // Refetch để đồng bộ trạng thái
       const r = await getUserAddresses(user.id_user);
       if (r.ok) {
         const list = r.data?.addresses || [];
         setAddresses(list);
-        const def = list.find(
+        const visible = list.filter(
+          (a) => (a?.status || "").toLowerCase() !== "deleted"
+        );
+        const def = visible.find(
           (a) => (a.status || "").toLowerCase() === "default"
         );
         setSelectedAddressId(
-          def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
+          def ? getAddressId(def) : visible[0] ? getAddressId(visible[0]) : null
         );
       }
       setAddrModalOpen(false);
@@ -253,26 +286,65 @@ const UserProfile = () => {
     }
   };
 
+  /** ✅ Xoá địa chỉ: support 204 No Content và đồng bộ selectedAddressId */
   const handleDeleteAddress = async (addr) => {
     const id = getAddressId(addr);
-    const res = await deleteUserAddress(id);
-    if (!res.ok) {
-      message.error(res.error || "Xóa địa chỉ thất bại");
+    if (!id) {
+      message.error("Không xác định được ID địa chỉ");
       return;
     }
-    message.success("Đã xóa địa chỉ");
 
-    // 🔁 Refetch để đồng bộ sau khi xoá (đặc biệt nếu xoá default)
-    const r = await getUserAddresses(user.id_user);
-    if (r.ok) {
-      const list = r.data?.addresses || [];
-      setAddresses(list);
-      const def = list.find(
-        (a) => (a.status || "").toLowerCase() === "default"
-      );
-      setSelectedAddressId(
-        def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
-      );
+    // Nếu chỉ còn 1 địa chỉ hiển thị thì cảnh báo (tuỳ yêu cầu)
+    if (visibleAddresses.length <= 1) {
+      message.warning("Bạn cần ít nhất 1 địa chỉ. Hãy thêm địa chỉ khác trước khi xoá.");
+      return;
+    }
+
+    const isDefault = (addr.status || "").toLowerCase() === "default";
+    const candidates = visibleAddresses.filter((a) => getAddressId(a) !== id);
+    const candidateToPromote = candidates[0] ? getAddressId(candidates[0]) : null;
+
+    try {
+      if (isDefault && candidateToPromote) {
+        const promote = await updateUserAddress(candidateToPromote, {
+          status: "default",
+        });
+        if (!promote?.ok) {
+          message.warning("Không thể đặt mặc định cho địa chỉ còn lại. Vẫn thử xoá…");
+        }
+      }
+
+      const res = await deleteUserAddress(id);
+      if (!res.ok) {
+        // Fallback: xoá mềm nếu BE không xoá cứng
+        const soft = await updateUserAddress(id, { status: "deleted" });
+        if (!soft?.ok) {
+          message.error(res.error || soft?.error || "Xoá địa chỉ thất bại");
+          return;
+        }
+      }
+
+      message.success("Đã xoá địa chỉ");
+
+      // Refetch để đồng bộ UI + selectedAddressId
+      const r = await getUserAddresses(user.id_user);
+      if (r.ok) {
+        const list = r.data?.addresses || [];
+        setAddresses(list);
+        const visible = list.filter(
+          (a) => (a?.status || "").toLowerCase() !== "deleted"
+        );
+        const def = visible.find(
+          (a) => (a.status || "").toLowerCase() === "default"
+        );
+        setSelectedAddressId(
+          def ? getAddressId(def) : visible[0] ? getAddressId(visible[0]) : null
+        );
+      } else {
+        message.warning("Không tải lại được danh sách địa chỉ.");
+      }
+    } catch (e) {
+      message.error(e?.message || "Xoá địa chỉ thất bại");
     }
   };
 
@@ -456,7 +528,7 @@ const UserProfile = () => {
               </Button>
             }
           >
-            {addresses.length === 0 ? (
+            {visibleAddresses.length === 0 ? (
               <Text type="secondary">
                 Chưa có địa chỉ. Hãy thêm địa chỉ mới.
               </Text>
@@ -467,7 +539,7 @@ const UserProfile = () => {
                 style={{ width: "100%" }}
               >
                 <List
-                  dataSource={addresses}
+                  dataSource={visibleAddresses}
                   renderItem={(addr) => {
                     const id = getAddressId(addr);
                     const isDefault =
@@ -480,7 +552,11 @@ const UserProfile = () => {
                             key="edit"
                             type="link"
                             onClick={() => openEditAddress(addr)}
-                            style={{ paddingInline: 0 }}
+                            style={{
+                              backgroundColor: "#1677ff",
+                              borderColor: "#1677ff",
+                              color: "#fff",
+                            }}
                           >
                             Sửa
                           </Button>,
@@ -494,7 +570,11 @@ const UserProfile = () => {
                             <Button
                               type="link"
                               danger
-                              style={{ paddingInline: 0 }}
+                              style={{
+                                backgroundColor: "#ec3b34",
+                                borderColor: "#ec3b34",
+                                color: "#fff",
+                              }}
                             >
                               Xoá
                             </Button>
