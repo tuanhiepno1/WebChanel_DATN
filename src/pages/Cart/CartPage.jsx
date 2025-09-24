@@ -1,3 +1,4 @@
+// src/pages/Cart/CartPage.jsx
 import React, { useState, useEffect } from "react";
 import {
   Row,
@@ -31,6 +32,22 @@ import { fetchVouchers, checkoutAPI, applyVoucherAPI } from "@api/cartApi";
 import { fetchOrderHistoryByUserId } from "@api/userApi";
 import AddressPickerModal from "@components/AddressPickerModal";
 
+// 🔧 Map phương thức từ FE → giá trị BE chấp nhận
+const normalizePaymentMethodForBE = (method) => {
+  if (!method) return "COD";
+  if (method === "vietqr") return "Bank Transfer"; // quan trọng
+  if (method === "cod") return "COD";
+  // có thể bổ sung thêm các case khác tuỳ BE
+  return method;
+};
+
+// 🔧 Trạng thái thanh toán: COD → pending; Online (Bank Transfer/VNPay) → paid nếu đã xác thực
+const resolvePaymentStatus = (method, { confirmed = false } = {}) => {
+  const m = normalizePaymentMethodForBE(method);
+  if (m === "COD") return "pending";
+  return confirmed ? "paid" : "pending";
+};
+
 const CartPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -39,7 +56,7 @@ const CartPage = () => {
   const [form] = Form.useForm();
 
   const [vietqrOpen, setVietqrOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("vnpay");
+  const [paymentMethod, setPaymentMethod] = useState("cod"); // nên đồng bộ với Radio
   const [selectedIds, setSelectedIds] = useState([]);
   const [openDeliveryModal, setOpenDeliveryModal] = useState(false); // Modal nhập tay (tuỳ chọn)
   const [checkoutVisible, setCheckoutVisible] = useState(false);
@@ -51,21 +68,13 @@ const CartPage = () => {
     name: user?.username || "",
     phone: user?.phone || "",
     address: user?.address || "",
-    addressId: null, // ✅ rất quan trọng
+    addressId: null, // ✅ rất quan trọng để BE liên kết địa chỉ
   });
   const [tempDeliveryInfo, setTempDeliveryInfo] = useState(deliveryInfo);
   const [selectedVoucherId, setSelectedVoucherId] = useState(null);
 
   // Modal chọn địa chỉ giao hàng
   const [addrPickerOpen, setAddrPickerOpen] = useState(false);
-
-  // Helper chọn payment_status theo chuẩn DB (paid|pending|failed)
-  const resolvePaymentStatus = (method, { confirmed = false } = {}) => {
-    if (method === "cod") return "pending";
-    if (method === "vietqr") return confirmed ? "paid" : "pending";
-    if (method === "vnpay") return confirmed ? "paid" : "pending";
-    return "pending";
-  };
 
   useEffect(() => {
     if (user?.id) {
@@ -425,7 +434,7 @@ const CartPage = () => {
               name: tempDeliveryInfo.name,
               phone: tempDeliveryInfo.phone,
               address: tempDeliveryInfo.address,
-              addressId: null, // nhập tay => không có id
+              addressId: null, // nhập tay → không có id
             }));
             setOpenDeliveryModal(false);
           });
@@ -467,6 +476,7 @@ const CartPage = () => {
         userId={user?.id}
       />
 
+      {/* ✅ Nhánh thanh toán thường (không VietQR) */}
       <CheckoutModal
         visible={checkoutVisible}
         onCancel={() => setCheckoutVisible(false)}
@@ -479,18 +489,17 @@ const CartPage = () => {
               return;
             }
 
-            // ✅ Gửi CẢ 2 key: address_id & id_address để chắc chắn khớp BE
             await checkoutAPI(user.id, {
               customer_name: deliveryInfo.name,
               phone: deliveryInfo.phone,
               address: deliveryInfo.address, // nếu BE vẫn muốn lưu text
               address_id: deliveryInfo.addressId,
-              id_address: deliveryInfo.addressId,
-              payment_method: paymentMethod,
+              id_address: deliveryInfo.addressId, // gửi thêm khoá dự phòng
+              payment_method: normalizePaymentMethodForBE(paymentMethod), // 🔧 map method cho BE
               voucher_id: selectedVoucherId,
               total_price: finalTotal,
               payment_status: resolvePaymentStatus(paymentMethod, {
-                confirmed: false,
+                confirmed: false, // thường COD → pending
               }),
             });
 
@@ -516,6 +525,7 @@ const CartPage = () => {
         total={finalTotal}
       />
 
+      {/* ✅ Nhánh VietQR — đã xác thực (onConfirmTransferred) → payment_status = paid */}
       <VietQRPayModal
         open={vietqrOpen}
         onClose={() => setVietqrOpen(false)}
@@ -535,12 +545,12 @@ const CartPage = () => {
               phone: deliveryInfo.phone,
               address: `${deliveryInfo.address} | MÃ CK: ${paymentCode}`,
               address_id: deliveryInfo.addressId, // ✅ gửi id
-              id_address: deliveryInfo.addressId,  // ✅ gửi thêm khoá dự phòng
-              payment_method: "vietqr",
+              id_address: deliveryInfo.addressId, // ✅ dự phòng key khác
+              payment_method: normalizePaymentMethodForBE("vietqr"), // → "Bank Transfer"
               voucher_id: selectedVoucherId,
               total_price: amount,
               payment_status: resolvePaymentStatus("vietqr", {
-                confirmed: false, // đổi true nếu muốn đánh dấu paid ngay
+                confirmed: true, // 🔥 đã xác thực → paid
               }),
             };
 
