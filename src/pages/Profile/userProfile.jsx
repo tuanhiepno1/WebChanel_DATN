@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Card,
   Descriptions,
@@ -20,7 +20,6 @@ import {
   MailOutlined,
   PhoneOutlined,
   HomeOutlined,
-  CalendarOutlined,
   ShoppingOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
@@ -42,6 +41,48 @@ import ChangePasswordModal from "@components/ChangePasswordModal";
 import AddressModal from "@components/AddressModal";
 
 const { Text } = Typography;
+
+const ASSET_BASE = (
+  import.meta.env.VITE_ASSET_BASE_URL || "http://localhost:8000/"
+).replace(/\/?$/, "/"); // luôn có dấu / ở cuối
+
+/** Thử lần lượt nhiều biến thể URL cho 1 path tương đối */
+const SmartAvatar = ({ path, size = 150, alt = "avatar", fallback, style }) => {
+  const [idx, setIdx] = useState(0);
+
+  const candidates = useMemo(() => {
+    if (!path) return [fallback];
+    if (/^https?:\/\//i.test(path)) return [path, fallback];
+
+    const p = String(path).replace(/^\/+/, ""); // bỏ / đầu
+
+    // Các khả năng phổ biến với Laravel
+    const list = [
+      `${ASSET_BASE}${p}`, // http://localhost:8000/uploads/...
+      `${ASSET_BASE}storage/${p}`, // http://localhost:8000/storage/uploads/...
+      `${ASSET_BASE}${p.replace(/^uploads\//, "storage/")}`, // http://localhost:8000/storage/...
+      fallback,
+    ];
+
+    return [...new Set(list)]; // loại trùng
+  }, [path, fallback]);
+
+  return (
+    <Avatar
+      src={candidates[idx]}
+      size={size}
+      alt={alt}
+      style={style}
+      onError={() => {
+        if (idx < candidates.length - 1) {
+          setIdx(idx + 1); // thử URL tiếp theo
+          return false; // chặn antd đánh dấu hỏng để còn thử tiếp
+        }
+        return true; // hết phương án → để antd fallback
+      }}
+    />
+  );
+};
 
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
@@ -89,6 +130,19 @@ const UserProfile = () => {
   const getAddressId = (addr) =>
     addr?.id ?? addr?.address_id ?? addr?.id_address ?? addr?._id ?? null;
 
+  // ✅ Lấy địa chỉ mặc định (nếu chưa có thì fallback theo radio đang chọn)
+  const defaultAddr = useMemo(() => {
+    if (!Array.isArray(addresses) || addresses.length === 0) return null;
+    let def = addresses.find(
+      (a) => (a.status || "").toLowerCase() === "default"
+    );
+    if (!def && selectedAddressId) {
+      def =
+        addresses.find((a) => getAddressId(a) === selectedAddressId) || null;
+    }
+    return def;
+  }, [addresses, selectedAddressId]);
+
   // ---- Load dữ liệu
   useEffect(() => {
     const loadOrderHistory = async () => {
@@ -129,11 +183,11 @@ const UserProfile = () => {
   // ---- Address handlers
   const handleSelectAddress = async (addressId) => {
     setSelectedAddressId(addressId);
-    // optimistic UI: chỉ 1 default
+    // ✅ optimistic UI: chỉ để 1 default, các địa chỉ khác là "non-default"
     setAddresses((prev) =>
       prev.map((a) => {
         const id = getAddressId(a);
-        return { ...a, status: id === addressId ? "default" : "none" };
+        return { ...a, status: id === addressId ? "default" : "non-default" };
       })
     );
     const res = await updateUserAddress(addressId, { status: "default" });
@@ -153,6 +207,7 @@ const UserProfile = () => {
     const res = await createUserAddress(user.id_user, payload);
     if (res.ok) {
       message.success("Đã thêm địa chỉ");
+      // Refetch để đồng bộ và lấy default mới
       const r = await getUserAddresses(user.id_user);
       if (r.ok) {
         const list = r.data?.addresses || [];
@@ -179,6 +234,7 @@ const UserProfile = () => {
     const res = await updateUserAddress(getAddressId(editingAddress), payload);
     if (res.ok) {
       message.success("Đã cập nhật địa chỉ");
+      // Refetch để đồng bộ trạng thái default
       const r = await getUserAddresses(user.id_user);
       if (r.ok) {
         const list = r.data?.addresses || [];
@@ -200,18 +256,23 @@ const UserProfile = () => {
   const handleDeleteAddress = async (addr) => {
     const id = getAddressId(addr);
     const res = await deleteUserAddress(id);
-    if (res.ok) {
-      message.success("Đã xóa địa chỉ");
-      setAddresses((prev) => prev.filter((a) => getAddressId(a) !== id));
-      setSelectedAddressId((prevSelected) => {
-        if (prevSelected === id) {
-          const nextList = addresses.filter((a) => getAddressId(a) !== id);
-          return nextList[0] ? getAddressId(nextList[0]) : null;
-        }
-        return prevSelected;
-      });
-    } else {
+    if (!res.ok) {
       message.error(res.error || "Xóa địa chỉ thất bại");
+      return;
+    }
+    message.success("Đã xóa địa chỉ");
+
+    // 🔁 Refetch để đồng bộ sau khi xoá (đặc biệt nếu xoá default)
+    const r = await getUserAddresses(user.id_user);
+    if (r.ok) {
+      const list = r.data?.addresses || [];
+      setAddresses(list);
+      const def = list.find(
+        (a) => (a.status || "").toLowerCase() === "default"
+      );
+      setSelectedAddressId(
+        def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
+      );
     }
   };
 
@@ -314,11 +375,13 @@ const UserProfile = () => {
           <Card style={{ marginBottom: 24 }}>
             <Row gutter={[32, 32]}>
               <Col xs={24} sm={8} style={{ textAlign: "center" }}>
-                <Avatar
-                  src={user.image || defaultAvatar}
+                <SmartAvatar
+                  path={user?.image}
                   size={150}
+                  fallback={defaultAvatar}
                   style={{ marginBottom: 16 }}
                 />
+
                 <div style={{ fontSize: 18, fontWeight: 600 }}>
                   {user?.username}
                 </div>
@@ -352,24 +415,23 @@ const UserProfile = () => {
               </Col>
 
               <Col xs={24} sm={16}>
+                {/* ✅ Dùng địa chỉ mặc định/đang chọn để hiển thị */}
                 <Descriptions column={1} bordered size="middle">
-                  <Descriptions.Item label="Giới tính">
-                    {user.gender || "Không xác định"}
-                  </Descriptions.Item>
                   <Descriptions.Item label="Email">
-                    <MailOutlined /> {user.email}
+                    <MailOutlined /> {user.email || "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Số điện thoại">
-                    <PhoneOutlined />{" "}
-                    {user.phone
-                      ? `0${user.phone}`.replace(/^00+/, "0")
-                      : "Chưa cập nhật"}
+                    <PhoneOutlined /> {defaultAddr?.phone || "Chưa cập nhật"}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Ngày sinh">
-                    <CalendarOutlined /> {user.birthday || "Chưa cập nhật"}
+                  <Descriptions.Item label="Người nhận">
+                    <HomeOutlined />{" "}
+                    {defaultAddr?.recipient_name ||
+                      user.username ||
+                      "Chưa cập nhật"}
                   </Descriptions.Item>
                   <Descriptions.Item label="Địa chỉ">
-                    <HomeOutlined /> {user.address || "Chưa cập nhật"}
+                    <HomeOutlined />{" "}
+                    {defaultAddr?.address_line || "Chưa cập nhật"}
                   </Descriptions.Item>
                 </Descriptions>
               </Col>
@@ -395,7 +457,9 @@ const UserProfile = () => {
             }
           >
             {addresses.length === 0 ? (
-              <Text type="secondary">Chưa có địa chỉ. Hãy thêm địa chỉ mới.</Text>
+              <Text type="secondary">
+                Chưa có địa chỉ. Hãy thêm địa chỉ mới.
+              </Text>
             ) : (
               <Radio.Group
                 value={selectedAddressId}
@@ -427,7 +491,11 @@ const UserProfile = () => {
                             cancelText="Không"
                             onConfirm={() => handleDeleteAddress(addr)}
                           >
-                            <Button type="link" danger style={{ paddingInline: 0 }}>
+                            <Button
+                              type="link"
+                              danger
+                              style={{ paddingInline: 0 }}
+                            >
                               Xoá
                             </Button>
                           </Popconfirm>,
@@ -481,13 +549,16 @@ const UserProfile = () => {
                     style={{ marginBottom: 20 }}
                     title={
                       <span>
-                        Đơn hàng #{order.id_order} - {getOrderTag(order.status)} - Ngày:{" "}
-                        {formatDate(order.order_date)}
+                        Đơn hàng #{order.id_order} - {getOrderTag(order.status)}{" "}
+                        - Ngày: {formatDate(order.order_date)}
                       </span>
                     }
                     extra={
                       <>
-                        <Text strong style={{ color: "#d4380d", marginRight: 12 }}>
+                        <Text
+                          strong
+                          style={{ color: "#d4380d", marginRight: 12 }}
+                        >
                           Tổng: {formatCurrency(order.total)}
                         </Text>
 
@@ -530,7 +601,9 @@ const UserProfile = () => {
                                       type="primary"
                                       size="small"
                                       onClick={() =>
-                                        navigate(buildProductDetailPath(productId))
+                                        navigate(
+                                          buildProductDetailPath(productId)
+                                        )
                                       }
                                       style={{
                                         backgroundColor: "#DBB671",
@@ -568,8 +641,13 @@ const UserProfile = () => {
                               description={
                                 <>
                                   <div>Số lượng: {item.quantity}</div>
-                                  <div>Đơn giá: {formatCurrency(item?.product?.price)}</div>
-                                  <div>Loại: {item?.product?.type || "Không rõ"}</div>
+                                  <div>
+                                    Đơn giá:{" "}
+                                    {formatCurrency(item?.product?.price)}
+                                  </div>
+                                  <div>
+                                    Loại: {item?.product?.type || "Không rõ"}
+                                  </div>
                                 </>
                               }
                             />

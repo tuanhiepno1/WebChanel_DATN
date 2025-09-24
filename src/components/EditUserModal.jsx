@@ -1,23 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Form, Input, message, Upload, Button } from "antd";
+import { Modal, Form, Input, message, Upload, Button, Avatar } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { useDispatch } from "react-redux";
 import { updateUser as updateUserApi } from "@api/userApi";
 import { updateUserInfo } from "@features/authSlice";
 
+const toAbs = (path) => {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const base =
+    import.meta.env.VITE_ASSET_BASE_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    "";
+  const b = (base || "").replace(/\/+$/, "");
+  const p = String(path).replace(/^\/+/, "");
+  return b ? `${b}/${p}` : `/${p}`;
+};
+
 const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
   const [avatarFile, setAvatarFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (visible && user) {
-      // Prefill TẤT CẢ các field mà API yêu cầu, kể cả email (dù disabled)
       form.setFieldsValue({
         username: user?.username || "",
-        email: user?.email || "",
-        phone: user?.phone || "",
-        address: user?.address || "",
+        email: user?.email || "", // chỉ hiển thị
       });
       setAvatarFile(null);
     }
@@ -29,39 +39,38 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
       return;
     }
 
-    // Payload đúng theo API: username, email, phone, address (+ avatar nếu có)
-    const payload = {
-      username: values.username ?? user.username,
-      email: values.email ?? user.email,        // email vẫn được gửi, là giá trị cũ
-      phone: values.phone ?? user.phone,
-      address: values.address ?? user.address,
-      // avatar chỉ append khi có file mới
-      ...(avatarFile ? { avatar: avatarFile } : {}),
-    };
-
     try {
-      const response = await updateUserApi(user.id_user, payload);
+      setSubmitting(true);
 
-      // Chuẩn hoá URL ảnh đại diện nếu BE trả path tương đối
-      const userWithFullImage = {
-        ...response.user,
-        image: response.user?.image?.startsWith("http")
-          ? response.user.image
-          : `${import.meta.env.VITE_ASSET_BASE_URL}${response.user?.image || ""}`,
+      // ✅ Luôn dùng FormData để phù hợp route POST multipart
+      const fd = new FormData();
+      fd.append("username", values.username.trim());
+      if (avatarFile) fd.append("image", avatarFile); // key phải trùng cột "image"
+
+      const resp = await updateUserApi(user.id_user, fd);
+
+      // Chuẩn hoá dữ liệu trả về
+      const returnedUser = resp?.data || resp?.user || {};
+      const merged = {
+        ...user,
+        ...returnedUser,
+        image: toAbs(returnedUser?.image ?? user?.image),
       };
-      dispatch(updateUserInfo(userWithFullImage));
 
+      dispatch(updateUserInfo(merged));
       message.success("Cập nhật thông tin thành công");
-      onClose();
+      onClose?.();
       onSuccess?.();
-    } catch (error) {
-      const errorData = error?.response?.data;
-      const errMsg =
+    } catch (err) {
+      const errorData = err?.response?.data;
+      const msg =
         errorData?.message ||
         (errorData?.errors &&
           errorData.errors[Object.keys(errorData.errors)[0]]?.[0]) ||
         "Cập nhật thất bại";
-      message.error(errMsg);
+      message.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -72,6 +81,7 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
       onCancel={onClose}
       onOk={() => form.submit()}
       okText="Lưu"
+      confirmLoading={submitting}
       okButtonProps={{
         style: { backgroundColor: "#DBB671", borderColor: "#DBB671", color: "#000" },
       }}
@@ -85,40 +95,27 @@ const EditUserModal = ({ visible, onClose, user, onSuccess }) => {
           <Input />
         </Form.Item>
 
-        {/* Email: hiển thị nhưng không cho sửa, vẫn có name để submit giá trị cũ */}
-        <Form.Item label="Email" name="email"
-          rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}
-        >
+        {/* Email: hiển thị, không cho sửa */}
+        <Form.Item label="Email" name="email">
           <Input disabled />
         </Form.Item>
 
-        <Form.Item
-          label="Số điện thoại"
-          name="phone"
-          rules={[
-            { required: true, message: "Vui lòng nhập số điện thoại" },
-            { pattern: /^[0-9]+$/, message: "Số điện thoại chỉ được chứa số" },
-          ]}
-        >
-          <Input />
-        </Form.Item>
-
-        <Form.Item
-          label="Địa chỉ"
-          name="address"
-          rules={[{ required: true, message: "Vui lòng nhập địa chỉ" }]}
-        >
-          <Input.TextArea />
-        </Form.Item>
-
-        {/* KHÔNG có form đổi mật khẩu ở đây */}
         <Form.Item label="Ảnh đại diện">
           <Upload
-            beforeUpload={(file) => { setAvatarFile(file); return false; }}
+            beforeUpload={(file) => {
+              setAvatarFile(file);
+              return false; // chặn auto upload
+            }}
+            onRemove={() => setAvatarFile(null)}
             maxCount={1}
+            accept="image/*"
+            listType="picture"
           >
             <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
           </Upload>
+          <div style={{ marginTop: 8 }}>
+            <Avatar src={toAbs(user?.image)} size={64} />
+          </div>
         </Form.Item>
       </Form>
     </Modal>

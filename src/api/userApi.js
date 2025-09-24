@@ -46,30 +46,29 @@ export const fetchOrderHistoryByUserId = async (id_user) => {
   }
 };
 
-export const updateUser = async (id, updatedData) => {
-  const formData = new FormData();
+export const updateUser = async (id, data) => {
+  let formData;
 
-  formData.append("username", updatedData.username);
-  formData.append("email", updatedData.email);
-  formData.append("phone", updatedData.phone);
-  formData.append("address", updatedData.address);
-
-  if (updatedData.password) {
-    formData.append("password", updatedData.password);
+  if (data instanceof FormData) {
+    formData = data; // dùng nguyên FormData đã chuẩn bị từ UI
+  } else {
+    formData = new FormData();
+    if (data?.username != null) formData.append("username", data.username);
+    // chấp nhận data.image hoặc data.avatar
+    const file = data?.image || data?.avatar;
+    if (file instanceof File) formData.append("image", file);
+    if (data?.password) formData.append("password", data.password); // nếu BE cho phép
+    if (data?.email != null) formData.append("email", data.email);  // nếu BE cho phép
   }
 
-  if (updatedData.avatar instanceof File) {
-    formData.append("avatar", updatedData.avatar);
-  }
-
-  const response = await axiosClient.post(`/users/${id}`, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
+  const res = await axiosClient.post(`/users/${id}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
   });
 
-  return response.data;
+  return res.data;
 };
+
+
 
 export const changeUserPassword = async (idUser, payload) => {
   const res = await axiosClient.put(`/users/${idUser}/password`, {

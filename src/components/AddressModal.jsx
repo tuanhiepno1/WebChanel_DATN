@@ -5,28 +5,30 @@ const AddressModal = ({ open, onCancel, onSubmit, initialValues }) => {
   const [form] = Form.useForm();
 
   useEffect(() => {
-    if (open) {
-      form.resetFields();
-      if (initialValues) {
-        form.setFieldsValue({
-          recipient_name: initialValues.recipient_name,
-          phone: initialValues.phone,
-          address_line: initialValues.address_line,
-          isDefault: (initialValues.status || "").toLowerCase() === "default",
-        });
-      }
-    }
+    if (!open) return;
+    form.resetFields();
+
+    const currentStatus = (initialValues?.status || "").toLowerCase(); // "default" | "non-default" | "deleted" | ""
+    form.setFieldsValue({
+      recipient_name: initialValues?.recipient_name || "",
+      phone: initialValues?.phone || "",
+      address_line: initialValues?.address_line || "",
+      // chỉ coi là default nếu đúng "default"
+      isDefault: currentStatus === "default",
+    });
   }, [open, initialValues, form]);
 
   const handleOk = () => {
     form.validateFields().then((values) => {
+      const isDefault = !!values.isDefault;
       const payload = {
         recipient_name: values.recipient_name.trim(),
         phone: values.phone.trim(),
         address_line: values.address_line.trim(),
-        status: values.isDefault ? "default" : "none",
+        // ✅ SỬA TẠI ĐÂY: không tick => "non-default"
+        status: isDefault ? "default" : "non-default",
       };
-      onSubmit(payload);
+      onSubmit?.(payload);
     });
   };
 
@@ -37,6 +39,7 @@ const AddressModal = ({ open, onCancel, onSubmit, initialValues }) => {
       onOk={handleOk}
       title={initialValues ? "Sửa địa chỉ" : "Thêm địa chỉ"}
       okText={initialValues ? "Cập nhật" : "Thêm"}
+      destroyOnClose
     >
       <Form form={form} layout="vertical">
         <Form.Item
