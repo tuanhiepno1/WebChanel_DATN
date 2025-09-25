@@ -13,6 +13,9 @@ import { GAS_BASE, GAS_TOLERANCE } from "@utils/gas"; // GAS_BASE = domain Worke
 
 const { Text, Title } = Typography;
 
+const CSKH_PHONE = "0876111815";
+const CSKH_ZALO_URL = `https://zalo.me/${CSKH_PHONE.replace(/\D/g, "")}`;
+
 const randomCode = (len = 8) =>
   Math.random()
     .toString(36)
@@ -36,9 +39,9 @@ const tokenize = (s) =>
 
 const isExactCodeInTx = (tx, code) => {
   const codeNorm = normalize(code);
-  const codeCellNorm = normalize(tx?.rawCode || "");
-  const tokens = tokenize(tx?.content || "");
-  return codeCellNorm === codeNorm || tokens.includes(codeNorm);
+  const memo = tx?.content || tx?.description || tx?.addInfo || "";
+  const tokens = tokenize(memo);
+  return tokens.includes(codeNorm);
 };
 
 const copyText = async (txt) => {
@@ -84,11 +87,12 @@ const unifyVerify = (raw, needAmount, tol) => {
             at: t.at,
             rawCode: t.code,
             content: t.content,
+            accountNumber: t.accountNumber,
+            transferType: t.transferType,
           },
         ]
       : [];
     const paid = txs[0]?.amount || 0;
-    // status tạm, FE sẽ tự phân loại lại
     return {
       matched: !!raw.matched,
       status: raw.matched ? "UNKNOWN" : "WRONG_CODE",
@@ -180,7 +184,7 @@ const VietQRPayModal = ({
     } catch {}
   };
 
-  // verify (qua Worker) – luôn truyền from/windowRows để thu hẹp & tránh match nhầm quá khứ
+  // verify (qua Worker)
   const verifyCodeAmount = async (code, amount, tolerance = GAS_TOLERANCE) => {
     const openedAt = openAtRef.current || Date.now();
     const fromISO = new Date(openedAt - 2 * 60 * 60 * 1000).toISOString(); // lùi 2 tiếng
@@ -190,7 +194,7 @@ const VietQRPayModal = ({
       `&amount=${Math.floor(amount)}` +
       `&tolerance=${tolerance}` +
       `&from=${encodeURIComponent(fromISO)}` +
-      `&windowRows=2000`; // quét sâu nhưng có from
+      `&windowRows=2000`;
 
     const res = await fetch(url, { method: "GET" });
     const text = await res.text();
@@ -205,24 +209,69 @@ const VietQRPayModal = ({
   };
 
   // Áp FE-hard-guard (lọc đúng mã tuyệt đối) + hành động UI
-  const handleVerifyResult = async (resp, needAmount, codeForThis, context) => {
+  // isStrict: chỉ TRUE với strict-check (amount == needAmount, tolerance=0)
+  const handleVerifyResult = async (
+    resp,
+    needAmount,
+    codeForThis,
+    context,
+    isStrict = false
+  ) => {
     if (!resp) return false;
     if (resp.ok === false && resp.message) {
       message.error(`Bridge error: ${resp.message}`);
       return false;
     }
 
-    // LỌC CHẶT: chỉ giữ giao dịch có token == codeForThis
-    const goodTxs = (resp.transactions || []).filter((t) =>
-      isExactCodeInTx(t, codeForThis)
-    );
+    // LỌC CHẶT: chỉ giữ giao dịch của đúng tài khoản, đúng chiều, đúng mã
+    // helper: chỉ lấy chữ số & bỏ 0 đầu
+    const digitsNoLeadZero = (s) =>
+      String(s || "")
+        .replace(/\D/g, "")
+        .replace(/^0+/, "");
+
+    // các field có thể chứa số TK nhận tuỳ nguồn
+    const getReceiverAcc = (t) =>
+      t.accountNumber ||
+      t.account_no ||
+      t.toAccount ||
+      t.beneficiaryAccount ||
+      t.receiverAccount ||
+      t.creditAccount ||
+      "";
+
+    // TK chuẩn bạn mong đợi (trùng với QR)
+    const RECEIVER_ACC = "04330819301";
+
+    const goodTxs = (resp.transactions || []).filter((t) => {
+      const dir = String(t.transferType || t.direction || "in").toLowerCase();
+      const dirOk = dir === "in";
+
+      const accGot = digitsNoLeadZero(getReceiverAcc(t));
+      const accWant = digitsNoLeadZero(RECEIVER_ACC);
+      const accOk = accGot && accWant ? accGot === accWant : true; // nếu BE không trả TK thì không chặn
+
+      return accOk && dirOk && isExactCodeInTx(t, codeForThis);
+    });
+
+    // Nếu server báo match mà không có giao dịch đúng mã → coi là sai mã
+    if ((resp.matched || resp.status === "OK") && goodTxs.length === 0) {
+      if (context === "main") setPhase("wrongcode");
+      return false;
+    }
 
     const r = classify(
       goodTxs,
       needAmount,
       context === "topup" ? GAS_TOLERANCE : 0
     );
+
     if (r.kind === "ok") {
+      // Chỉ xác nhận đơn khi là STRICT trong main (đúng mã + đúng tiền + tol=0)
+      if (context === "main" && !isStrict) {
+        return false; // any-check chỉ để phát hiện trạng thái, không confirm
+      }
+
       if (!firedRef.current && r.row) {
         firedRef.current = true;
         await claimRow(r.row, `${context.toUpperCase()}-OK`);
@@ -236,6 +285,7 @@ const VietQRPayModal = ({
       }
       return true;
     }
+
     if (r.kind === "underpay") {
       if (context === "main") {
         if (goodTxs[0]?.row) await claimRow(goodTxs[0].row, `${mainCode}-P1`);
@@ -250,6 +300,7 @@ const VietQRPayModal = ({
       }
       return false;
     }
+
     if (r.kind === "overpay") {
       if (context === "main") {
         setPhase("overpay");
@@ -258,7 +309,7 @@ const VietQRPayModal = ({
       return false;
     }
 
-    // kind === "none" → không có giao dịch đúng mã ⇒ coi như chưa match
+    // kind === "none"
     return false;
   };
 
@@ -275,15 +326,17 @@ const VietQRPayModal = ({
 
     const tick = async () => {
       try {
-        // 1) Đúng mã + đúng tiền (tolerance=0) → confirm ngay nếu có
+        // 1) Đúng mã + đúng tiền (STRICT)
         const strict = await verifyCodeAmount(mainCode, totalAmount, 0);
-        if (await handleVerifyResult(strict, totalAmount, mainCode, "main"))
+        if (
+          await handleVerifyResult(strict, totalAmount, mainCode, "main", true)
+        )
           return;
 
-        // 2) Đúng mã (bỏ tiền) → phát hiện thiếu/thừa sớm
+        // 2) Đúng mã (bỏ tiền) → phát hiện thiếu/thừa sớm (KHÔNG confirm)
         const BIG_TOL = 10 ** 12;
         const any = await verifyCodeAmount(mainCode, 0, BIG_TOL);
-        if (await handleVerifyResult(any, totalAmount, mainCode, "main"))
+        if (await handleVerifyResult(any, totalAmount, mainCode, "main", false))
           return;
       } catch (err) {
         console.error("verify error:", err);
@@ -305,32 +358,33 @@ const VietQRPayModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mainCode, totalAmount, mainExpire, onConfirmTransferred, onClose]);
 
-  // Hết giờ → hậu kiểm 1 lần rồi wrongcode
   const handleMainExpired = async () => {
     if (firedRef.current || phase !== "waiting") return;
     try {
       const BIG_TOL = 10 ** 12;
       const any = await verifyCodeAmount(mainCode, 0, BIG_TOL);
-      if (await handleVerifyResult(any, totalAmount, mainCode, "main")) return;
+      if (await handleVerifyResult(any, totalAmount, mainCode, "main", false))
+        return;
       setPhase("wrongcode");
     } catch {
       setPhase("wrongcode");
     }
   };
 
-  // “Tôi đã chuyển khoản” → kiểm tra ngay (và nếu không thấy, chuyển wrongcode)
+  // “Tôi đã chuyển khoản” → kiểm tra ngay
   const [manualBusy, setManualBusy] = useState(false);
   const handleManualConfirm = async () => {
     if (manualBusy || firedRef.current) return;
     setManualBusy(true);
     try {
       const strict = await verifyCodeAmount(mainCode, totalAmount, 0);
-      if (await handleVerifyResult(strict, totalAmount, mainCode, "main"))
+      if (await handleVerifyResult(strict, totalAmount, mainCode, "main", true))
         return;
 
       const BIG_TOL = 10 ** 12;
       const any = await verifyCodeAmount(mainCode, 0, BIG_TOL);
-      if (await handleVerifyResult(any, totalAmount, mainCode, "main")) return;
+      if (await handleVerifyResult(any, totalAmount, mainCode, "main", false))
+        return;
 
       setPhase("wrongcode");
       message.warning(
@@ -357,18 +411,14 @@ const VietQRPayModal = ({
           topUpAmount,
           GAS_TOLERANCE
         );
-        // Chỉ accept nếu giao dịch đúng token == topUpCode
         const ok = await handleVerifyResult(
           strict,
           topUpAmount,
           topUpCode,
-          "topup"
+          "topup",
+          true // topup confirm khi strict ok
         );
         if (ok) {
-          // handleVerifyResult đã confirm & chuyển trang rồi
-          // nhưng ở case topup, cần confirm đơn tổng tiền:
-          // chuyển ngay sang done + onConfirmTransferred đã gọi trong handleVerifyResult
-          // (do context=topup)
           await onConfirmTransferred({
             paymentCode: topUpCode,
             amount: totalAmount,
@@ -535,7 +585,8 @@ const VietQRPayModal = ({
         </Title>
         <Text>
           Để tránh lệch sổ, hệ thống không tự tạo đơn khi số tiền lớn hơn yêu
-          cầu. Vui lòng liên hệ <b>Zalo CSKH: 0876111815</b> để hoàn/điều chỉnh.
+          cầu. Vui lòng liên hệ <b>Zalo CSKH: {CSKH_PHONE}</b> để hoàn/điều
+          chỉnh.
         </Text>
         <Divider />
         <Space direction="vertical" style={{ width: "100%" }}>
@@ -550,11 +601,18 @@ const VietQRPayModal = ({
           >
             {info}
           </pre>
-          <Space>
+          <Space wrap>
             <Button onClick={() => copyText(info)}>Sao chép</Button>
-            <Button type="primary" onClick={onClose}>
-              Đóng
+            {/* 🔗 Nút Zalo */}
+            <Button
+              type="primary"
+              href={CSKH_ZALO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Liên hệ CSKH (Zalo)
             </Button>
+            <Button onClick={onClose}>Đóng</Button>
           </Space>
         </Space>
       </>
@@ -575,7 +633,7 @@ const VietQRPayModal = ({
         <Text>
           Có thể bạn đã nhập <b>sai mã CK</b>, dùng lại mã cũ đã được{" "}
           <b>CSKH xử lý/đã claim</b>, hoặc chưa chuyển khoản. Vui lòng liên hệ{" "}
-          <b>Zalo CSKH: 0876111815</b> để được rà soát.
+          <b>Zalo CSKH: {CSKH_PHONE}</b> để được rà soát.
         </Text>
         <Divider />
         <Space direction="vertical" style={{ width: "100%" }}>
@@ -590,11 +648,18 @@ const VietQRPayModal = ({
           >
             {info}
           </pre>
-          <Space>
+          <Space wrap>
             <Button onClick={() => copyText(info)}>Sao chép</Button>
-            <Button type="primary" onClick={onClose}>
-              Đóng
+            {/* 🔗 Nút Zalo */}
+            <Button
+              type="primary"
+              href={CSKH_ZALO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Liên hệ CSKH (Zalo)
             </Button>
+            <Button onClick={onClose}>Đóng</Button>
           </Space>
         </Space>
       </>

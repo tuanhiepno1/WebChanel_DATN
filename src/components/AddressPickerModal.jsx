@@ -24,14 +24,23 @@ const AddressPickerModal = ({ open, userId, onClose, onChoose }) => {
       setLoading(true);
       const res = await getUserAddresses(userId);
       setLoading(false);
+
       if (res?.ok) {
         const list = res.data?.addresses || [];
-        setAddresses(list);
-        const def = list.find(
+
+        // ✅ LỌC BỎ địa chỉ deleted
+        const filtered = list.filter(
+          (a) => (a?.status || "").toLowerCase() !== "deleted"
+        );
+
+        setAddresses(filtered);
+
+        // ✅ Chọn mặc định từ danh sách đã lọc
+        const def = filtered.find(
           (a) => (a?.status || "").toLowerCase() === "default"
         );
         setSelectedId(
-          def ? getAddressId(def) : list[0] ? getAddressId(list[0]) : null
+          def ? getAddressId(def) : filtered[0] ? getAddressId(filtered[0]) : null
         );
       } else {
         message.error(res?.error || "Không tải được địa chỉ");
@@ -52,7 +61,7 @@ const AddressPickerModal = ({ open, userId, onClose, onChoose }) => {
           return;
         }
         onChoose({
-          addressId: getAddressId(chosen), // ✅ trả về id để FE gửi cho BE
+          addressId: getAddressId(chosen),
           name: chosen.recipient_name || "",
           phone: chosen.phone || "",
           address: chosen.address_line || "",
@@ -67,7 +76,7 @@ const AddressPickerModal = ({ open, userId, onClose, onChoose }) => {
         </div>
       ) : addresses.length === 0 ? (
         <div>
-          Chưa có địa chỉ nào. Vui lòng thêm địa chỉ trong trang{" "}
+          Chưa có địa chỉ khả dụng. Vui lòng thêm địa chỉ trong trang{" "}
           <Button type="link" onClick={() => window.location.assign("/profile")}>
             hồ sơ cá nhân
           </Button>
